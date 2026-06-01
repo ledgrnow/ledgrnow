@@ -1,0 +1,23 @@
+{
+  "name": "ledgrnow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LedgrNow AI-powered finance and business management SaaS.",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "lint": "npm run lint --workspace apps/web && npm run lint --workspace apps/api",
+    "prisma:generate": "npm run prisma:generate --workspace apps/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace apps/api"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
+  }
+}

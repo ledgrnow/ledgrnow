@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #f7fafc;
+  color: #07111f;
+}
+
+.dark body {
+  background: #07111f;
+  color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.18);
+}
