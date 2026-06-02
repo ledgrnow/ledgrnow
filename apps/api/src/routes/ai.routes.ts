@@ -38,10 +38,14 @@ router.post(
   })
 );
 
-router.post(
-  "/categorize-expense",
-  body("title").isLength({ min: 2 }),
-  body("amount").isFloat({ min: 0.01 }),
+rrouter.post(
+  "/chat",
+  (req, res, next) => {
+    console.log("BODY:", req.body);
+    next();
+  },
+  body("message").isLength({ min: 2 }),
+  body("chatId").optional().isString(),
   validateRequest,
   asyncHandler(async (req, res) => {
     res.json(await categorizeExpense(req.body.title, Number(req.body.amount), req.body.merchant));

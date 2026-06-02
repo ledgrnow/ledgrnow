@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL ="https://ledgrnowapi-production.up.railway.app";
 
 export type ApiResult<T> = Promise<T>;
 
