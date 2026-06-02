@@ -15,7 +15,9 @@ router.post(
   next();
 }
   body("message").isLength({ min: 2 }),
-  body("chatId").optional().isString(),
+  body("chatId")
+  .optional({ nullable: true })
+  .isString(),
   validateRequest,
   asyncHandler(async (req, res) => {
     const chat = req.body.chatId
