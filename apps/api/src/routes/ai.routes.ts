@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { body } from "express-validator";
 import { prisma } from "../config/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -9,10 +10,10 @@ import { HttpError } from "../utils/httpError.js";
 
 router.post(
   "/chat",
-  (req, res, next) => {
-    console.log("BODY:", req.body);
-    next();
-  },
+ (req: Request, res: Response, next: NextFunction) => {
+  console.log("BODY:", req.body);
+  next();
+}
   body("message").isLength({ min: 2 }),
   body("chatId").optional().isString(),
   validateRequest,
