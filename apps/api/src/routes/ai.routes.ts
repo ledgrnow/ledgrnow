@@ -10,45 +10,54 @@ import { HttpError } from "../utils/httpError.js";
 
 router.post(
   "/chat",
- (req: Request, res: Response, next: NextFunction) => {
-  console.log("BODY:", req.body);
-  next();
-}
+
+  (req: Request, res: Response, next: NextFunction) => {
+    console.log("BODY:", req.body);
+    next();
+  },
+
   body("message").isLength({ min: 2 }),
+
   body("chatId")
-  .optional({ nullable: true })
-  .isString(),
+    .optional({ nullable: true })
+    .isString(),
+
   validateRequest,
+
   asyncHandler(async (req, res) => {
     const chat = req.body.chatId
       ? await prisma.aiChat.findFirst({
           where: {
             id: req.body.chatId,
-            userId: req.user!.id
+            userId: req.user!.id,
           },
           include: {
             messages: {
               orderBy: { createdAt: "asc" },
-              take: 20
-            }
-          }
+              take: 20,
+            },
+          },
         })
       : await prisma.aiChat.create({
           data: {
             userId: req.user!.id,
-            title: req.body.message.slice(0, 64)
+            title: req.body.message.slice(0, 64),
           },
-          include: { messages: true }
+          include: {
+            messages: true,
+          },
         });
 
-    if (!chat) throw new HttpError(404, "Chat not found");
+    if (!chat) {
+      throw new HttpError(404, "Chat not found");
+    }
 
     await prisma.aiMessage.create({
       data: {
         chatId: chat.id,
         role: "USER",
-        content: req.body.message
-      }
+        content: req.body.message,
+      },
     });
 
     const context = chat.messages.map((message) => ({
@@ -56,33 +65,38 @@ router.post(
         | "user"
         | "assistant"
         | "system",
-      content: message.content
+      content: message.content,
     }));
 
     const answer = await askFinancialAssistant([
       ...context,
       {
         role: "user",
-        content: req.body.message
-      }
+        content: req.body.message,
+      },
     ]);
 
     const assistant = await prisma.aiMessage.create({
       data: {
         chatId: chat.id,
         role: "ASSISTANT",
-        content: answer
-      }
+        content: answer,
+      },
     });
 
     await prisma.aiChat.update({
-      where: { id: chat.id },
-      data: { updatedAt: new Date() }
+      where: {
+        id: chat.id,
+      },
+      data: {
+        updatedAt: new Date(),
+      },
     });
 
     res.json({
       chatId: chat.id,
-      message: assistant
+      message: assistant,
     });
   })
 );
+export default router;
