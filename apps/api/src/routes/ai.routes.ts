@@ -7,7 +7,7 @@ import { validateRequest } from "../middleware/errorHandler.js";
 import { askFinancialAssistant, categorizeExpense, generateFinancialReport } from "../services/openai.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { HttpError } from "../utils/httpError.js";
-
+const router = Router();
 router.post(
   "/chat",
 

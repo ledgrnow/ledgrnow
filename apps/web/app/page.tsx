@@ -78,15 +78,21 @@ function Logo({ forceLight = false, size = 20 }) {
   );
 }
 
-function Btn({ children, variant="primary", onClick, style={}, small=false }) {
-  const { T, dark } = useTheme();
+function Btn({
+  children,
+  variant = "primary",
+  onClick,
+  style = {},
+  small = false
+}: any) {
+  const { T, dark } = useTheme() as any;
   const base = {
     padding: small ? "8px 18px" : "11px 24px",
     borderRadius:9, fontSize: small ? 13 : 14, fontWeight:600,
     fontFamily:"'Plus Jakarta Sans',sans-serif", cursor:"pointer",
     transition:"all .2s", border:"none", ...style
   };
-  const variants = {
+  const variants: any = {
     primary: { background: dark ? T.accentLight : T.black, color: dark ? T.accentDark : "#fff",
                border: dark ? `1px solid ${T.accent}` : "none" },
     green:   { background:T.accent, color:"#fff", boxShadow:`0 4px 16px rgba(90,178,51,.25)` },
@@ -95,7 +101,7 @@ function Btn({ children, variant="primary", onClick, style={}, small=false }) {
     danger:  { background:T.negativeBg, color:T.negative, border:`1px solid ${T.negative}44` },
   };
   return (
-    <button style={{ ...base, ...variants[variant] }} onClick={onClick}
+    <button style={{ ...base, ...variants[variant as keyof typeof variants] }} onClick={onClick}
       onMouseEnter={e => { e.currentTarget.style.opacity=".82"; e.currentTarget.style.transform="translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.opacity="1";   e.currentTarget.style.transform="translateY(0)"; }}>
       {children}
@@ -103,8 +109,8 @@ function Btn({ children, variant="primary", onClick, style={}, small=false }) {
   );
 }
 
-function Card({ children, style={}, hover=true }) {
-  const { T } = useTheme();
+function Card({ children, style = {}, hover = true }: any) {
+  const { T } = useTheme() as any;
   const [hov, setHov] = useState(false);
   return (
     <div style={{
@@ -119,14 +125,14 @@ function Card({ children, style={}, hover=true }) {
   );
 }
 
-function SectionLabel({ children }) {
-  const { T } = useTheme();
+function SectionLabel({ children }: any) {
+  const { T } = useTheme() as any;
   return <div style={{ fontSize:11, letterSpacing:"2px", textTransform:"uppercase",
     color:T.accentDark, fontWeight:600, marginBottom:10 }}>{children}</div>;
 }
 
-function SectionTitle({ children }) {
-  const { T } = useTheme();
+function SectionTitle({ children }: any) {
+  const { T } = useTheme() as any;
   return <h2 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"clamp(26px,4vw,44px)",
     fontWeight:800, letterSpacing:"-1px", lineHeight:1.1, color:T.text }}>{children}</h2>;
 }
@@ -750,7 +756,7 @@ function Footer({ setPage }) {
     { heading:"Menu",       links:["Home","Features","Pricing","Blog"] },
     { heading:"Navigation", links:["Trading","Journal","Financials","Invoices","Watchlist"] },
     { heading:"Company",    links:["About","Careers","Privacy","Terms"] },
-    { heading:"Social",     links:["LinkedIn","Twitter","Instagram","TikTok"] },
+    { heading:"Social",     links:["LinkedIn","Twitter","Instagram"] },
   ];
   return (
     <footer style={{ background:"#0d0f0d", overflow:"hidden", position:"relative" }}>
@@ -773,7 +779,7 @@ function Footer({ setPage }) {
             Trade, journal, analyze, and invoice — without the overwhelm.
           </p>
           <div style={{ marginTop:28, fontSize:13, color:"rgba(255,255,255,.2)" }}>
-            © 2024 LedgrNow. All rights reserved.
+            © 2026  LedgrNow. All rights reserved.
           </div>
         </div>
         {cols.map(col => (
