@@ -756,7 +756,7 @@ function Footer({ setPage }) {
     { heading:"Menu",       links:["Home","Features","Pricing","Blog"] },
     { heading:"Navigation", links:["Trading","Journal","Financials","Invoices","Watchlist"] },
     { heading:"Company",    links:["About","Careers","Privacy","Terms"] },
-    { heading:"Social",     links:["LinkedIn","Twitter","Instagram"] },
+    { heading:"Social",     links:["LinkedIn","X","Instagram"] },
   ];
   return (
     <footer style={{ background:"#0d0f0d", overflow:"hidden", position:"relative" }}>
@@ -788,10 +788,29 @@ function Footer({ setPage }) {
               color:"rgba(255,255,255,.3)", marginBottom:20 }}>{col.heading}</div>
             <div style={{ display:"flex", flexDirection:"column", gap:13 }}>
               {col.links.map(l => (
-                <a key={l} href="#" style={{ fontSize:14, color:"rgba(255,255,255,.5)", textDecoration:"none", transition:"color .2s" }}
-                  onMouseEnter={e => e.target.style.color="#fff"}
-                  onMouseLeave={e => e.target.style.color="rgba(255,255,255,.5)"}>{l}</a>
-              ))}
+  <a
+    key={l}
+    href={
+      l === "Instagram"
+        ? "https://instagram.com/ledgrnow"
+        : l === "Twitter"
+        ? "https://x.com/ledgrnow"
+        : l === "LinkedIn"
+        ? "https://linkedin.com/company/ledgrnow"
+        : "#"
+    }
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      fontSize: 14,
+      color: "rgba(255,255,255,.5)",
+      textDecoration: "none",
+      transition: "color .2s"
+    }}
+  >
+    {l}
+  </a>
+))}
             </div>
           </div>
         ))}
