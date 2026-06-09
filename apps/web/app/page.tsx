@@ -767,8 +767,8 @@ function Footer({ setPage }) {
           <div onClick={() => setPage("home")} style={{ cursor:"pointer", marginBottom:16 }}>
             <Logo forceLight />
           </div>
-          <div style={{ fontStyle:"italic", fontSize:15, color:"rgba(255,255,255,.4)",
-            fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:300, marginBottom:20 }}>
+         <div style={{ fontStyle:"italic", fontSize:15, color:"#ffffff",
+  fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:500, marginBottom:20 }}>
             Your Finance, in Perfect Control.
           </div>
           <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:800,
