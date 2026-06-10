@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 
 /* ══════════════════════════════════════
@@ -78,21 +77,15 @@ function Logo({ forceLight = false, size = 20 }) {
   );
 }
 
-function Btn({
-  children,
-  variant = "primary",
-  onClick,
-  style = {},
-  small = false
-}: any) {
-  const { T, dark } = useTheme() as any;
+function Btn({ children, variant="primary", onClick, style={}, small=false }) {
+  const { T, dark } = useTheme();
   const base = {
     padding: small ? "8px 18px" : "11px 24px",
     borderRadius:9, fontSize: small ? 13 : 14, fontWeight:600,
     fontFamily:"'Plus Jakarta Sans',sans-serif", cursor:"pointer",
     transition:"all .2s", border:"none", ...style
   };
-  const variants: any = {
+  const variants = {
     primary: { background: dark ? T.accentLight : T.black, color: dark ? T.accentDark : "#fff",
                border: dark ? `1px solid ${T.accent}` : "none" },
     green:   { background:T.accent, color:"#fff", boxShadow:`0 4px 16px rgba(90,178,51,.25)` },
@@ -101,7 +94,7 @@ function Btn({
     danger:  { background:T.negativeBg, color:T.negative, border:`1px solid ${T.negative}44` },
   };
   return (
-    <button style={{ ...base, ...variants[variant as keyof typeof variants] }} onClick={onClick}
+    <button style={{ ...base, ...variants[variant] }} onClick={onClick}
       onMouseEnter={e => { e.currentTarget.style.opacity=".82"; e.currentTarget.style.transform="translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.opacity="1";   e.currentTarget.style.transform="translateY(0)"; }}>
       {children}
@@ -109,8 +102,8 @@ function Btn({
   );
 }
 
-function Card({ children, style = {}, hover = true }: any) {
-  const { T } = useTheme() as any;
+function Card({ children, style={}, hover=true }) {
+  const { T } = useTheme();
   const [hov, setHov] = useState(false);
   return (
     <div style={{
@@ -125,14 +118,14 @@ function Card({ children, style = {}, hover = true }: any) {
   );
 }
 
-function SectionLabel({ children }: any) {
-  const { T } = useTheme() as any;
+function SectionLabel({ children }) {
+  const { T } = useTheme();
   return <div style={{ fontSize:11, letterSpacing:"2px", textTransform:"uppercase",
     color:T.accentDark, fontWeight:600, marginBottom:10 }}>{children}</div>;
 }
 
-function SectionTitle({ children }: any) {
-  const { T } = useTheme() as any;
+function SectionTitle({ children }) {
+  const { T } = useTheme();
   return <h2 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"clamp(26px,4vw,44px)",
     fontWeight:800, letterSpacing:"-1px", lineHeight:1.1, color:T.text }}>{children}</h2>;
 }
@@ -331,7 +324,7 @@ function NotifPanel({ open, onClose }) {
 /* ══════════════════════════════════════
    NAV
 ══════════════════════════════════════ */
-function NavFull({ page, setPage, onAuth }) {
+function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen }) {
   const { T, dark } = useTheme();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -350,6 +343,21 @@ function NavFull({ page, setPage, onAuth }) {
       backdropFilter:"blur(20px)", borderBottom:`1px solid ${T.border}`,
       transition:"background .3s, border-color .3s" }}>
       <div onClick={() => setPage("home")} style={{ cursor:"pointer" }}><Logo /></div>
+      {/* Sidebar toggle for app pages */}
+      {isApp && (
+        <button onClick={() => setSideOpen(o=>!o)}
+          style={{ width:36, height:36, borderRadius:9, border:`1px solid ${T.border}`,
+            background: sideOpen ? T.accentLight : "transparent",
+            cursor:"pointer", display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center", gap:5, padding:"9px",
+            transition:"all .2s", marginLeft:-4 }}>
+          {[0,1,2].map(i => (
+            <span key={i} style={{ display:"block", height:2, borderRadius:2,
+              background: sideOpen ? T.accent : T.muted2, transition:"all .3s",
+              width: i===1 ? (sideOpen?"60%":"100%") : "100%" }} />
+          ))}
+        </button>
+      )}
       <div style={{ display:"flex", gap:4 }}>
         {isApp ? appLinks.map(l => (
           <button key={l.id} onClick={() => setPage(l.id)}
@@ -495,72 +503,278 @@ function Hero({ onAuth, setPage }) {
 /* ══════════════════════════════════════
    LANDING — TOOLS
 ══════════════════════════════════════ */
-const TOOLS = [
-  { id:"trading",   icon:"📈", name:"Trading",          desc:"Execute trades, set alerts, manage positions",
-    options:["Live Trading Dashboard","Paper Trading (Demo)","Portfolio Overview","Price Alerts","Order History","Watchlist"] },
-  { id:"journal",   icon:"📓", name:"Trading Journal",  desc:"Log trades, track emotions, analyze patterns",
-    options:["Add Journal Entry","View Past Trades","Performance Analytics","Tag & Filter Entries","Export to PDF/CSV"] },
-  { id:"fin",       icon:"🏦", name:"Company Financials",desc:"Income statements, balance sheets, cash flow",
-    options:["Income Statement","Balance Sheet","Cash Flow Statement","Key Ratios & Metrics","Earnings Calendar","Compare Companies"] },
-  { id:"invoices",  icon:"🧾", name:"Invoice & Billing", desc:"Generate, send, and track professional invoices",
-    options:["Create New Invoice","Invoice Templates","Manage Clients","Payment Tracking","Recurring Billing","Export & Send PDF"] },
+/* ── All platform modules ── */
+const ALL_MODULES = [
+  {
+    id:"trading", icon:"📈", color:"#5ab233", name:"Trading",
+    desc:"Trade journals, watchlists, risk tools & analytics",
+    items:[
+      { label:"Trade Journal",           icon:"📓", page:"journal"    },
+      { label:"Watchlist",               icon:"👁",  page:"watchlist"  },
+      { label:"Trading Plans",           icon:"📋", page:"dashboard"  },
+      { label:"Backtesting Notes",       icon:"🔬", page:"dashboard"  },
+      { label:"Risk Calculator",         icon:"⚖️", page:"dashboard"  },
+      { label:"Position Size Calculator",icon:"📐", page:"dashboard"  },
+      { label:"P&L Analytics",           icon:"📊", page:"dashboard"  },
+      { label:"Strategy Tracker",        icon:"🎯", page:"dashboard"  },
+    ]
+  },
+  {
+    id:"ai", icon:"🤖", color:"#6366f1", name:"AI Trading Assistant",
+    desc:"AI-powered trade reviews, coaching & pattern recognition",
+    items:[
+      { label:"Trade Review",       icon:"🔍", page:"journal"   },
+      { label:"Mistake Detection",  icon:"⚠️", page:"journal"   },
+      { label:"Performance Analysis",icon:"📈",page:"journal"   },
+      { label:"Daily Trade Summary",icon:"📅", page:"journal"   },
+      { label:"AI Coach",           icon:"🧠", page:"journal"   },
+      { label:"Pattern Recognition",icon:"🔮", page:"journal"   },
+    ]
+  },
+  {
+    id:"personal", icon:"🏠", color:"#f59e0b", name:"Personal Finance",
+    desc:"Budgets, savings goals, net worth & EMI tracking",
+    items:[
+      { label:"Expense Tracker",   icon:"💸", page:"dashboard" },
+      { label:"Budget Planner",    icon:"📊", page:"dashboard" },
+      { label:"Savings Goals",     icon:"🎯", page:"dashboard" },
+      { label:"Debt Tracker",      icon:"📉", page:"dashboard" },
+      { label:"Net Worth Dashboard",icon:"💰",page:"dashboard" },
+      { label:"EMI Calculator",    icon:"🧮", page:"dashboard" },
+    ]
+  },
+  {
+    id:"business", icon:"🏢", color:"#0ea5e9", name:"Business Finance",
+    desc:"Income, expenses, P&L, GST & financial statements",
+    items:[
+      { label:"Income Tracking",    icon:"💵", page:"financials" },
+      { label:"Expense Management", icon:"💳", page:"financials" },
+      { label:"Profit & Loss",      icon:"📈", page:"financials" },
+      { label:"Balance Sheet",      icon:"⚖️", page:"financials" },
+      { label:"Cash Flow",          icon:"🔄", page:"financials" },
+      { label:"GST Reports",        icon:"🧾", page:"financials" },
+      { label:"Financial Statements",icon:"📑",page:"financials" },
+    ]
+  },
+  {
+    id:"invoice", icon:"🧾", color:"#5ab233", name:"Invoice & Billing",
+    desc:"Create invoices, track payments & manage clients",
+    items:[
+      { label:"Create Invoices",     icon:"✏️", page:"invoices" },
+      { label:"Recurring Invoices",  icon:"🔁", page:"invoices" },
+      { label:"Payment Tracking",    icon:"💰", page:"invoices" },
+      { label:"Client Management",   icon:"👥", page:"invoices" },
+      { label:"Quotation Generator", icon:"📄", page:"invoices" },
+    ]
+  },
+  {
+    id:"loans", icon:"🏦", color:"#ef4444", name:"Loan Management",
+    desc:"Track personal loans, EMI schedules & interest",
+    items:[
+      { label:"Personal Loans",        icon:"💼", page:"dashboard" },
+      { label:"Borrowed Money Tracker",icon:"📥", page:"dashboard" },
+      { label:"Lending Tracker",       icon:"📤", page:"dashboard" },
+      { label:"Interest Calculator",   icon:"🧮", page:"dashboard" },
+      { label:"EMI Schedule",          icon:"📅", page:"dashboard" },
+    ]
+  },
+  {
+    id:"investments", icon:"📊", color:"#a855f7", name:"Investments",
+    desc:"Stocks, mutual funds, crypto, dividends & SIP",
+    items:[
+      { label:"Stocks Portfolio",    icon:"📈", page:"watchlist"  },
+      { label:"Mutual Funds",        icon:"🏦", page:"dashboard"  },
+      { label:"Crypto Portfolio",    icon:"₿",  page:"dashboard"  },
+      { label:"Dividend Tracker",    icon:"💹", page:"dashboard"  },
+      { label:"SIP Tracker",         icon:"🔄", page:"dashboard"  },
+    ]
+  },
+  {
+    id:"tax", icon:"🧮", color:"#f97316", name:"Tax Center",
+    desc:"Tax calculators, capital gains & export reports",
+    items:[
+      { label:"Tax Calculator",     icon:"🧮", page:"financials" },
+      { label:"Capital Gains Report",icon:"📊",page:"financials" },
+      { label:"Tax Summary",        icon:"📋", page:"financials" },
+      { label:"Export Reports",     icon:"📤", page:"financials" },
+    ]
+  },
+  {
+    id:"vault", icon:"🔒", color:"#64748b", name:"Documents Vault",
+    desc:"Secure storage for PAN, Aadhaar, statements & contracts",
+    items:[
+      { label:"PAN Card Storage",   icon:"🪪", page:"settings"  },
+      { label:"Aadhaar Storage",    icon:"🪪", page:"settings"  },
+      { label:"Bank Statements",    icon:"🏦", page:"settings"  },
+      { label:"Trade Reports",      icon:"📊", page:"settings"  },
+      { label:"Invoices",           icon:"🧾", page:"invoices"  },
+      { label:"Contracts",          icon:"📝", page:"settings"  },
+    ]
+  },
+  {
+    id:"productivity", icon:"✅", color:"#14b8a6", name:"Productivity",
+    desc:"Notes, goals, tasks, calendar & reminders",
+    items:[
+      { label:"Notes",              icon:"📝", page:"dashboard" },
+      { label:"Goals",              icon:"🎯", page:"dashboard" },
+      { label:"Tasks",              icon:"✅", page:"dashboard" },
+      { label:"Financial Calendar", icon:"📅", page:"dashboard" },
+      { label:"Reminders",          icon:"🔔", page:"settings"  },
+    ]
+  },
 ];
 
+/* ── App Sidebar (shown inside app pages) ── */
+function AppSidebar({ page, setPage, sideOpen, setSideOpen }) {
+  const { T, dark } = useTheme();
+  const [expandedCat, setExpandedCat] = useState("trading");
+
+  const sidebarStyle = {
+    position:"fixed", top:0, left:0, bottom:0,
+    width: sideOpen ? 270 : 0,
+    background: dark ? "#0a0c0a" : "#fff",
+    borderRight:`1px solid ${T.border}`,
+    zIndex:998,
+    transition:"width .3s cubic-bezier(.4,0,.2,1)",
+    overflow:"hidden",
+    display:"flex", flexDirection:"column",
+    boxShadow: sideOpen ? `4px 0 24px ${T.shadow}` : "none",
+  };
+
+  return (
+    <>
+      {/* Overlay on mobile */}
+      {sideOpen && <div onClick={() => setSideOpen(false)}
+        style={{ position:"fixed", inset:0, zIndex:997, background:"rgba(0,0,0,.3)" }} />}
+
+      <div style={sidebarStyle}>
+        {/* Sidebar header */}
+        <div style={{ padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`,
+          display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0,
+          marginTop:65 }}>
+          <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700,
+            fontSize:13, color:T.muted, letterSpacing:"1px", textTransform:"uppercase" }}>Modules</div>
+          <button onClick={() => setSideOpen(false)}
+            style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, fontSize:18 }}>×</button>
+        </div>
+
+        {/* Module list */}
+        <div style={{ flex:1, overflowY:"auto", padding:"8px 0" }}>
+          {ALL_MODULES.map(cat => (
+            <div key={cat.id}>
+              {/* Category header */}
+              <div onClick={() => setExpandedCat(expandedCat===cat.id ? null : cat.id)}
+                style={{ display:"flex", alignItems:"center", gap:10,
+                  padding:"10px 20px", cursor:"pointer",
+                  background: expandedCat===cat.id ? `${cat.color}12` : "transparent",
+                  transition:"background .2s" }}
+                onMouseEnter={e => e.currentTarget.style.background=`${cat.color}10`}
+                onMouseLeave={e => e.currentTarget.style.background=expandedCat===cat.id ? `${cat.color}12` : "transparent"}>
+                <span style={{ width:30, height:30, borderRadius:8, flexShrink:0,
+                  background:`${cat.color}18`, display:"grid", placeItems:"center", fontSize:15 }}>{cat.icon}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:13, color:T.text,
+                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{cat.name}</div>
+                </div>
+                <span style={{ fontSize:12, color:T.muted, transition:"transform .2s",
+                  transform: expandedCat===cat.id ? "rotate(180deg)" : "none" }}>⌄</span>
+              </div>
+
+              {/* Sub-items */}
+              {expandedCat===cat.id && (
+                <div style={{ paddingBottom:4 }}>
+                  {cat.items.map(item => (
+                    <div key={item.label} onClick={() => { setPage(item.page); setSideOpen(false); }}
+                      style={{ display:"flex", alignItems:"center", gap:10,
+                        padding:"8px 20px 8px 36px", cursor:"pointer",
+                        background: "transparent", transition:"all .15s",
+                        borderLeft:`2px solid transparent` }}
+                      onMouseEnter={e => { e.currentTarget.style.background=`${cat.color}10`; e.currentTarget.style.borderLeftColor=cat.color; }}
+                      onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.borderLeftColor="transparent"; }}>
+                      <span style={{ fontSize:14 }}>{item.icon}</span>
+                      <span style={{ fontSize:13, color:T.muted2, fontWeight:400 }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── Landing ToolsSection (mega grid) ── */
 function ToolsSection({ setPage }) {
   const { T } = useTheme();
   const [open, setOpen] = useState(null);
-  const [selected, setSelected] = useState({});
-  const pageMap = { trading:"dashboard", journal:"journal", fin:"financials", invoices:"invoices" };
+
   return (
     <section id="tools" style={{ padding:"100px 56px", background:T.bg2, transition:"background .3s" }}>
       <div style={{ textAlign:"center", marginBottom:56 }}>
-        <SectionLabel>What do you want to do?</SectionLabel>
+        <SectionLabel>Everything in one place</SectionLabel>
         <SectionTitle>Pick Your Workflow</SectionTitle>
-        <p style={{ fontSize:15, color:T.muted2, marginTop:12, maxWidth:460, margin:"12px auto 0", lineHeight:1.7 }}>
-          Select a tool category and choose exactly what you need.
+        <p style={{ fontSize:15, color:T.muted2, marginTop:12, maxWidth:520, margin:"12px auto 0", lineHeight:1.7 }}>
+          10 powerful modules covering every aspect of your financial life.
         </p>
       </div>
-      <div style={{ maxWidth:860, margin:"0 auto", display:"flex", flexDirection:"column", gap:14 }}>
-        {TOOLS.map(t => (
-          <div key={t.id}>
-            <div onClick={() => setOpen(open===t.id ? null : t.id)}
-              style={{ display:"flex", alignItems:"center", gap:16,
-                background:T.card, border:`1.5px solid ${open===t.id ? T.accent : T.border}`,
-                borderRadius: open===t.id ? "14px 14px 0 0" : 14,
-                padding:"18px 24px", cursor:"pointer", transition:"all .2s",
-                boxShadow: open===t.id ? `0 4px 24px ${T.accent}18` : "none" }}>
-              <div style={{ width:44, height:44, borderRadius:10, background:T.accentLight,
-                display:"grid", placeItems:"center", fontSize:20, flexShrink:0 }}>{t.icon}</div>
+
+      {/* 2-col accordion grid */}
+      <div style={{ maxWidth:1100, margin:"0 auto",
+        display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+        {ALL_MODULES.map(cat => (
+          <div key={cat.id} style={{ borderRadius: open===cat.id ? "16px 16px 0 0" : 16, overflow:"hidden" }}>
+            {/* Header row */}
+            <div onClick={() => setOpen(open===cat.id ? null : cat.id)}
+              style={{ display:"flex", alignItems:"center", gap:14,
+                background:T.card, border:`1.5px solid ${open===cat.id ? cat.color : T.border}`,
+                borderRadius: open===cat.id ? "16px 16px 0 0" : 16,
+                padding:"16px 20px", cursor:"pointer", transition:"all .2s",
+                boxShadow: open===cat.id ? `0 4px 20px ${cat.color}22` : "none" }}>
+              <div style={{ width:42, height:42, borderRadius:10, flexShrink:0,
+                background:`${cat.color}18`, display:"grid", placeItems:"center", fontSize:20 }}>{cat.icon}</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:15, color:T.text }}>{t.name}</div>
-                <div style={{ fontSize:13, color:T.muted, marginTop:2 }}>{t.desc}</div>
+                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700,
+                  fontSize:14, color:T.text }}>{cat.name}</div>
+                <div style={{ fontSize:12, color:T.muted, marginTop:2 }}>{cat.desc}</div>
               </div>
-              <div style={{ fontSize:18, color: open===t.id ? T.accent : T.muted,
-                transform: open===t.id ? "rotate(180deg)" : "none", transition:"transform .3s" }}>⌄</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ fontSize:11, color:T.muted, background:T.bg3,
+                  padding:"2px 8px", borderRadius:20 }}>{cat.items.length} tools</span>
+                <span style={{ fontSize:16, color: open===cat.id ? cat.color : T.muted,
+                  transform: open===cat.id ? "rotate(180deg)" : "none", transition:"transform .3s" }}>⌄</span>
+              </div>
             </div>
-            {open===t.id && (
-              <div style={{ background:T.card2, border:`1.5px solid ${T.accent}`, borderTop:"none",
-                borderRadius:"0 0 14px 14px", padding:24, animation:"slideDown .3s ease" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))", gap:10 }}>
-                  {t.options.map(o => {
-                    const key = `${t.id}-${o}`, sel = selected[key];
-                    return (
-                      <div key={o} onClick={() => setSelected(s => ({ ...s, [key]:!s[key] }))}
-                        style={{ padding:"11px 15px", borderRadius:10,
-                          background: sel ? T.accentLight : T.bg,
-                          border:`1.5px solid ${sel ? T.accent : T.border}`,
-                          fontSize:13, fontWeight:500, color: sel ? T.accentDark : T.muted2,
-                          cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"all .2s" }}>
-                        <span style={{ width:6, height:6, borderRadius:"50%",
-                          background: sel ? T.accent : T.muted, flexShrink:0 }}/>
-                        {o}
-                      </div>
-                    );
-                  })}
+
+            {/* Expanded items */}
+            {open===cat.id && (
+              <div style={{ background:T.card2, border:`1.5px solid ${cat.color}`,
+                borderTop:"none", borderRadius:"0 0 16px 16px",
+                padding:"16px 20px", animation:"slideDown .25s ease" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:8, marginBottom:14 }}>
+                  {cat.items.map(item => (
+                    <div key={item.label} onClick={() => setPage(item.page)}
+                      style={{ display:"flex", alignItems:"center", gap:8,
+                        padding:"9px 12px", borderRadius:9,
+                        background:T.bg, border:`1px solid ${T.border}`,
+                        cursor:"pointer", transition:"all .15s", fontSize:13, color:T.muted2 }}
+                      onMouseEnter={e => { e.currentTarget.style.background=`${cat.color}12`; e.currentTarget.style.borderColor=cat.color; e.currentTarget.style.color=T.text; }}
+                      onMouseLeave={e => { e.currentTarget.style.background=T.bg; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.muted2; }}>
+                      <span style={{ fontSize:15 }}>{item.icon}</span>
+                      <span style={{ fontWeight:500 }}>{item.label}</span>
+                    </div>
+                  ))}
                 </div>
-                <Btn variant="primary" style={{ marginTop:18 }} onClick={() => setPage(pageMap[t.id])}>
-                  Open {t.name} →
-                </Btn>
+                <button onClick={() => setPage(cat.items[0].page)}
+                  style={{ padding:"9px 20px", borderRadius:9, border:"none",
+                    background:cat.color, color:"#fff", fontSize:13, fontWeight:600,
+                    fontFamily:"'Plus Jakarta Sans',sans-serif", cursor:"pointer",
+                    boxShadow:`0 4px 14px ${cat.color}44`, transition:"all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.opacity=".85"}
+                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                  Open {cat.name} →
+                </button>
               </div>
             )}
           </div>
@@ -756,7 +970,7 @@ function Footer({ setPage }) {
     { heading:"Menu",       links:["Home","Features","Pricing","Blog"] },
     { heading:"Navigation", links:["Trading","Journal","Financials","Invoices","Watchlist"] },
     { heading:"Company",    links:["About","Careers","Privacy","Terms"] },
-    { heading:"Social",     links:["LinkedIn","X","Instagram"] },
+    { heading:"Social",     links:["LinkedIn","Twitter","Instagram","TikTok"] },
   ];
   return (
     <footer style={{ background:"#0d0f0d", overflow:"hidden", position:"relative" }}>
@@ -767,8 +981,8 @@ function Footer({ setPage }) {
           <div onClick={() => setPage("home")} style={{ cursor:"pointer", marginBottom:16 }}>
             <Logo forceLight />
           </div>
-         <div style={{ fontStyle:"italic", fontSize:15, color:"#ffffff",
-  fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:500, marginBottom:20 }}>
+          <div style={{ fontStyle:"italic", fontSize:15, color:"rgba(255,255,255,.4)",
+            fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:300, marginBottom:20 }}>
             Your Finance, in Perfect Control.
           </div>
           <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:24, fontWeight:800,
@@ -779,7 +993,7 @@ function Footer({ setPage }) {
             Trade, journal, analyze, and invoice — without the overwhelm.
           </p>
           <div style={{ marginTop:28, fontSize:13, color:"rgba(255,255,255,.2)" }}>
-            © 2026  LedgrNow. All rights reserved.
+            © 2024 LedgrNow. All rights reserved.
           </div>
         </div>
         {cols.map(col => (
@@ -788,29 +1002,10 @@ function Footer({ setPage }) {
               color:"rgba(255,255,255,.3)", marginBottom:20 }}>{col.heading}</div>
             <div style={{ display:"flex", flexDirection:"column", gap:13 }}>
               {col.links.map(l => (
-  <a
-    key={l}
-    href={
-      l === "Instagram"
-        ? "https://instagram.com/ledgrnow"
-        : l === "Twitter"
-        ? "https://x.com/ledgrnow"
-        : l === "LinkedIn"
-        ? "https://linkedin.com/company/ledgrnow"
-        : "#"
-    }
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      fontSize: 14,
-      color: "rgba(255,255,255,.5)",
-      textDecoration: "none",
-      transition: "color .2s"
-    }}
-  >
-    {l}
-  </a>
-))}
+                <a key={l} href="#" style={{ fontSize:14, color:"rgba(255,255,255,.5)", textDecoration:"none", transition:"color .2s" }}
+                  onMouseEnter={e => e.target.style.color="#fff"}
+                  onMouseLeave={e => e.target.style.color="rgba(255,255,255,.5)"}>{l}</a>
+              ))}
             </div>
           </div>
         ))}
@@ -1521,6 +1716,299 @@ function Settings({ toast }) {
 }
 
 /* ══════════════════════════════════════
+   AI ASSISTANT (Real Anthropic API)
+══════════════════════════════════════ */
+const SYSTEM_PROMPT = `You are Ledgr, an expert AI financial assistant built into LedgrNow — a platform for trading, journaling, financial statements, and invoicing.
+
+You help users with:
+- Trading strategies, technical analysis, and market insights
+- Interpreting financial statements (income statement, balance sheet, cash flow)
+- Trade journaling advice and performance analysis
+- Invoice and billing questions
+- General finance, investing, and accounting concepts
+
+Keep responses concise, practical, and actionable. Use markdown-style formatting with ** for bold and bullet points where helpful. Always be professional but friendly. If asked something outside finance, gently redirect to financial topics.`;
+
+function AIAssistant() {
+  const { T, dark } = useTheme();
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role:"assistant", content:"Hi! I'm **Ledgr**, your AI financial assistant 👋\n\nI can help you with trading strategies, reading financial statements, journal analysis, and more. What would you like to know?" }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior:"smooth" }), 100);
+      inputRef.current?.focus();
+    }
+  }, [open, messages]);
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+
+    const userMsg = { role:"user", content:text };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setLoading(true);
+
+    try {
+      const apiMessages = newMessages.map(m => ({ role:m.role, content:m.content }));
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system: SYSTEM_PROMPT,
+          messages: apiMessages,
+        })
+      });
+      const data = await response.json();
+      const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Please try again.";
+      setMessages(m => [...m, { role:"assistant", content:reply }]);
+    } catch(err) {
+      setMessages(m => [...m, { role:"assistant", content:"⚠️ Connection error. Please check your network and try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKey = e => {
+    if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  };
+
+  const clearChat = () => setMessages([{
+    role:"assistant",
+    content:"Chat cleared! How can I help you with your finances today?"
+  }]);
+
+  // Render markdown-lite: **bold**, bullet points, newlines
+  const renderContent = (text) => {
+    return text.split("\n").map((line, i) => {
+      // bold
+      const parts = line.split(/\*\*(.*?)\*\*/g).map((p, j) =>
+        j % 2 === 1 ? <strong key={j}>{p}</strong> : p
+      );
+      // bullet
+      if (line.startsWith("- ") || line.startsWith("• ")) {
+        return (
+          <div key={i} style={{ display:"flex", gap:8, marginTop:4 }}>
+            <span style={{ color:T.accent, flexShrink:0, marginTop:1 }}>•</span>
+            <span>{parts.slice(1)}</span>
+          </div>
+        );
+      }
+      return <div key={i} style={{ marginTop: i>0 && line ? 6 : 0 }}>{parts}</div>;
+    });
+  };
+
+  const suggestions = [
+    "Analyze AAPL financials",
+    "Best risk management tips",
+    "How to read a balance sheet?",
+    "Explain P/E ratio",
+  ];
+
+  return (
+    <>
+      {/* Floating button */}
+      <button onClick={() => setOpen(o => !o)}
+        style={{
+          position:"fixed", bottom:32, right:32, zIndex:2000,
+          width:58, height:58, borderRadius:"50%", border:"none",
+          background:`linear-gradient(135deg, ${T.accent}, ${T.accentDark})`,
+          cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:`0 8px 32px ${T.accent}55`,
+          transition:"all .3s",
+          transform: open ? "scale(0.9) rotate(20deg)" : "scale(1) rotate(0deg)",
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform="scale(1.08)"}
+        onMouseLeave={e => e.currentTarget.style.transform= open ? "scale(0.9) rotate(20deg)" : "scale(1) rotate(0deg)"}
+        title="Ask Ledgr AI">
+        <span style={{ fontSize:26 }}>{open ? "✕" : "🤖"}</span>
+      </button>
+
+      {/* Pulse ring on button */}
+      {!open && (
+        <div style={{
+          position:"fixed", bottom:32, right:32, zIndex:1999,
+          width:58, height:58, borderRadius:"50%",
+          border:`2px solid ${T.accent}`,
+          animation:"pulse 2s infinite",
+          pointerEvents:"none",
+        }} />
+      )}
+
+      {/* Chat panel */}
+      {open && (
+        <div style={{
+          position:"fixed", bottom:104, right:32, zIndex:2000,
+          width:380, height:580,
+          background:T.card,
+          border:`1.5px solid ${T.border}`,
+          borderRadius:24,
+          boxShadow:`0 24px 80px ${T.shadowHov}`,
+          display:"flex", flexDirection:"column",
+          animation:"modalIn .25s ease",
+          overflow:"hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding:"16px 20px",
+            background:`linear-gradient(135deg, ${dark?"#1a2a1a":"#f0f8eb"}, ${dark?"#0d1a0d":"#e8f5e1"})`,
+            borderBottom:`1px solid ${T.border}`,
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{
+                width:40, height:40, borderRadius:"50%",
+                background:`linear-gradient(135deg, ${T.accent}, ${T.accentDark})`,
+                display:"grid", placeItems:"center", fontSize:20,
+                boxShadow:`0 4px 12px ${T.accent}44`,
+              }}>🤖</div>
+              <div>
+                <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700,
+                  fontSize:15, color:T.text }}>Ledgr AI</div>
+                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:1 }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:"#22c55e",
+                    animation:"pulse 2s infinite", display:"inline-block" }} />
+                  <span style={{ fontSize:11, color:T.muted }}>Online · Powered by Claude</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:6 }}>
+              <button onClick={clearChat} title="Clear chat"
+                style={{ width:30, height:30, borderRadius:8, border:`1px solid ${T.border}`,
+                  background:"transparent", cursor:"pointer", fontSize:14, color:T.muted,
+                  display:"grid", placeItems:"center" }}>🗑</button>
+              <button onClick={() => setOpen(false)}
+                style={{ width:30, height:30, borderRadius:8, border:`1px solid ${T.border}`,
+                  background:"transparent", cursor:"pointer", fontSize:14, color:T.muted,
+                  display:"grid", placeItems:"center" }}>✕</button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex:1, overflowY:"auto", padding:"16px", display:"flex",
+            flexDirection:"column", gap:12 }}>
+            {messages.map((msg, i) => (
+              <div key={i} style={{
+                display:"flex",
+                flexDirection: msg.role==="user" ? "row-reverse" : "row",
+                gap:8, alignItems:"flex-end",
+              }}>
+                {msg.role==="assistant" && (
+                  <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0,
+                    background:`linear-gradient(135deg,${T.accent},${T.accentDark})`,
+                    display:"grid", placeItems:"center", fontSize:14 }}>🤖</div>
+                )}
+                <div style={{
+                  maxWidth:"80%",
+                  padding:"11px 14px",
+                  borderRadius: msg.role==="user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                  background: msg.role==="user"
+                    ? `linear-gradient(135deg,${T.accent},${T.accentDark})`
+                    : T.bg2,
+                  color: msg.role==="user" ? "#fff" : T.text,
+                  fontSize:13, lineHeight:1.6,
+                  border: msg.role==="assistant" ? `1px solid ${T.border}` : "none",
+                  boxShadow:`0 2px 8px ${T.shadow}`,
+                }}>
+                  {renderContent(msg.content)}
+                </div>
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {loading && (
+              <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+                <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0,
+                  background:`linear-gradient(135deg,${T.accent},${T.accentDark})`,
+                  display:"grid", placeItems:"center", fontSize:14 }}>🤖</div>
+                <div style={{ padding:"12px 16px", borderRadius:"18px 18px 18px 4px",
+                  background:T.bg2, border:`1px solid ${T.border}` }}>
+                  <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                    {[0,1,2].map(d => (
+                      <div key={d} style={{
+                        width:7, height:7, borderRadius:"50%", background:T.accent,
+                        animation:`pulse 1.2s ${d*0.2}s infinite`,
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick suggestions (only on first message) */}
+          {messages.length === 1 && (
+            <div style={{ padding:"0 16px 12px", display:"flex", gap:6, flexWrap:"wrap" }}>
+              {suggestions.map(s => (
+                <button key={s} onClick={() => { setInput(s); inputRef.current?.focus(); }}
+                  style={{ padding:"5px 11px", borderRadius:20, border:`1px solid ${T.accent}55`,
+                    background:T.accentLight, color:T.accentDark, fontSize:11, fontWeight:500,
+                    cursor:"pointer", fontFamily:"'Plus Jakarta Sans',sans-serif",
+                    transition:"all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background=T.accent+22}
+                  onMouseLeave={e => e.currentTarget.style.background=T.accentLight}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div style={{
+            padding:"12px 16px",
+            borderTop:`1px solid ${T.border}`,
+            display:"flex", gap:8, alignItems:"flex-end",
+            background:T.card,
+          }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Ask about trading, finance, invoices…"
+              rows={1}
+              style={{
+                flex:1, padding:"10px 14px", borderRadius:14,
+                border:`1.5px solid ${input ? T.accent : T.border}`,
+                background:T.inputBg, color:T.text, fontSize:13,
+                fontFamily:"'Plus Jakarta Sans',sans-serif", outline:"none",
+                resize:"none", lineHeight:1.5, transition:"border-color .2s",
+                maxHeight:100, overflowY:"auto",
+              }}
+              onFocus={e=>e.target.style.borderColor=T.accent}
+              onBlur={e=>e.target.style.borderColor=input?T.accent:T.border}
+            />
+            <button onClick={sendMessage} disabled={!input.trim() || loading}
+              style={{
+                width:40, height:40, borderRadius:12, border:"none",
+                background: input.trim() && !loading ? T.accent : T.bg3,
+                color: input.trim() && !loading ? "#fff" : T.muted,
+                cursor: input.trim() && !loading ? "pointer" : "not-allowed",
+                display:"grid", placeItems:"center", fontSize:18,
+                transition:"all .2s", flexShrink:0,
+                boxShadow: input.trim() && !loading ? `0 4px 12px ${T.accent}44` : "none",
+              }}>
+              {loading ? "⌛" : "↑"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ══════════════════════════════════════
    ROOT APP
 ══════════════════════════════════════ */
 export default function App() {
@@ -1528,9 +2016,13 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState("login");
+  const [sideOpen, setSideOpen] = useState(false);
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
   const T = dark ? DARK : LIGHT;
+
+  // close sidebar when navigating to landing
+  useEffect(() => { if (page==="home") setSideOpen(false); }, [page]);
 
   // Apply bg+color to body
   useEffect(() => {
@@ -1548,6 +2040,8 @@ export default function App() {
   const openAuth = (tab="login") => { setAuthTab(tab); setAuthOpen(true); };
   const toggle = () => setDark(d => !d);
 
+  const isApp = ["dashboard","journal","financials","invoices","settings","watchlist"].includes(page);
+
   const renderPage = () => {
     switch(page) {
       case "dashboard":  return <Dashboard setPage={setPage} />;
@@ -1563,10 +2057,19 @@ export default function App() {
   return (
     <ThemeCtx.Provider value={{ dark, T, toggle }}>
       <div style={{ minHeight:"100vh", transition:"background .3s" }}>
-        <NavFull page={page} setPage={setPage} onAuth={openAuth} />
-        {renderPage()}
+        <NavFull page={page} setPage={setPage} onAuth={openAuth}
+          sideOpen={sideOpen} setSideOpen={setSideOpen} />
+        {isApp && (
+          <AppSidebar page={page} setPage={setPage}
+            sideOpen={sideOpen} setSideOpen={setSideOpen} />
+        )}
+        {/* Shift main content when sidebar open */}
+        <div style={{ marginLeft: isApp && sideOpen ? 270 : 0, transition:"margin-left .3s cubic-bezier(.4,0,.2,1)" }}>
+          {renderPage()}
+        </div>
         <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab={authTab} />
         <Toast toasts={toasts} remove={removeToast} />
+        <AIAssistant />
       </div>
     </ThemeCtx.Provider>
   );
