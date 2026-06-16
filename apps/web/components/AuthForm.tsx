@@ -1,64 +1,70 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, clearToken, getToken, type AuthUser } from "@/lib/api";
+import { Loader2 } from "lucide-react";
+import { api, setToken } from "@/lib/api";
+import { Button } from "./Button";
 
-interface AuthState {
-  user: AuthUser | null;
-  loading: boolean;
-  logout: () => void;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthState>({
-  user: null,
-  loading: true,
-  logout: () => {},
-  refreshUser: async () => {},
-});
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const refreshUser = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      const result = await api<{ user: AuthUser }>("/api/auth/me");
-      setUser(result.user);
-    } catch {
-      // Token invalid or expired — clear it
-      clearToken();
-      setUser(null);
+      const formData = new FormData(e.currentTarget);
+      const payload = Object.fromEntries(formData);
+      const result = await api<{ token: string }>(`/api/auth/${mode}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setToken(result.token);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
-
-  const logout = useCallback(() => {
-    clearToken();
-    setUser(null);
-    router.push("/auth/login");
-  }, [router]);
+  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>
-      {children}
-    </AuthContext.Provider>
+    <form onSubmit={submit} className="space-y-4">
+      {mode === "register" && (
+        <input
+          name="name"
+          required
+          minLength={2}
+          placeholder="Full name"
+          className="h-12 w-full rounded-md border border-slate-200 px-4 dark:border-slate-700 dark:bg-slate-900"
+        />
+      )}
+      <input
+        name="email"
+        required
+        type="email"
+        placeholder="Email address"
+        className="h-12 w-full rounded-md border border-slate-200 px-4 dark:border-slate-700 dark:bg-slate-900"
+      />
+      <input
+        name="password"
+        required
+        type="password"
+        placeholder="Password"
+        className="h-12 w-full rounded-md border border-slate-200 px-4 dark:border-slate-700 dark:bg-slate-900"
+      />
+      {error && (
+        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+          {error}
+        </p>
+      )}
+      <Button disabled={loading} className="w-full">
+        {loading && <Loader2 className="animate-spin mr-2" size={16} />}
+        {mode === "login" ? "Sign in" : "Create account"}
+      </Button>
+    </form>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
