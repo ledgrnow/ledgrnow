@@ -1,6 +1,41 @@
-"use client";
-import { useState, useEffect, useRef, createContext, useContext, ReactNode, Dispatch, SetStateAction } from "react";
-import { api, clearToken, getToken, setToken, type AuthUser } from "@/lib/api";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
+
+const API_URL =
+  import.meta?.env?.VITE_API_URL ||
+  (typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_API_URL : undefined) ||
+  "https://ledgrnowapi-production.up.railway.app";
+
+function getToken() {
+  return window.localStorage.getItem("ledgrnow_token");
+}
+
+function setToken(token) {
+  window.localStorage.setItem("ledgrnow_token", token);
+}
+
+function clearToken() {
+  window.localStorage.removeItem("ledgrnow_token");
+}
+
+async function api(path, options = {}) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error?.message || body.message || "Request failed");
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
 
 /* ══════════════════════════════════════
    RESPONSIVE CSS
@@ -140,25 +175,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden;transition:bac
 /* ══════════════════════════════════════
    THEME
 ══════════════════════════════════════ */
-interface ThemeTokens {
-  bg:string; bg2:string; bg3:string;
-  border:string; borderStrong:string;
-  accent:string; accentDark:string; accentLight:string;
-  text:string; muted:string; muted2:string;
-  black:string; white:string;
-  card:string; card2:string;
-  navBg:string; inputBg:string;
-  shadow:string; shadowHov:string;
-  tabActive:string; tabBg:string;
-  positive:string; positiveBg:string;
-  negative:string; negativeBg:string;
-  warn:string; warnBg:string;
-}
-interface ThemeCtxType { dark:boolean; T:ThemeTokens; toggle:()=>void; }
-const ThemeCtx = createContext<ThemeCtxType>({ dark:false, T:{} as ThemeTokens, toggle:()=>{} });
+const ThemeCtx = createContext({ dark:false, T:{}, toggle:()=>{} });
 const useTheme = () => useContext(ThemeCtx);
 
-const LIGHT:ThemeTokens = {
+const LIGHT = {
   bg:"#ffffff", bg2:"#f7f8f6", bg3:"#f0f2ee",
   border:"rgba(0,0,0,0.08)", borderStrong:"rgba(0,0,0,0.14)",
   accent:"#5ab233", accentDark:"#3d8a20", accentLight:"#e8f5e1",
@@ -172,7 +192,7 @@ const LIGHT:ThemeTokens = {
   negative:"#dc2626", negativeBg:"#fee2e2",
   warn:"#ca8a04", warnBg:"#fef9c3",
 };
-const DARK:ThemeTokens = {
+const DARK = {
   bg:"#0d0f0d", bg2:"#131613", bg3:"#1a1e1a",
   border:"rgba(255,255,255,0.07)", borderStrong:"rgba(255,255,255,0.12)",
   accent:"#5ab233", accentDark:"#74cc4a", accentLight:"rgba(90,178,51,0.12)",
@@ -190,7 +210,7 @@ const DARK:ThemeTokens = {
 /* ══════════════════════════════════════
    SHARED PRIMITIVES
 ══════════════════════════════════════ */
-function Logo({ size=20 }:{ size?:number }) {
+function Logo({ size=20 }) {
   const { dark } = useTheme();
   const col = dark ? "#e8ede8" : "#0d0d0d";
   return (
@@ -203,10 +223,9 @@ function Logo({ size=20 }:{ size?:number }) {
   );
 }
 
-interface BtnProps { children:ReactNode; variant?:string; onClick?:()=>void; style?:React.CSSProperties; small?:boolean; disabled?:boolean; }
-function Btn({ children, variant="primary", onClick, style={}, small=false, disabled=false }:BtnProps) {
+function Btn({ children, variant="primary", onClick, style={}, small=false, disabled=false }) {
   const { T, dark } = useTheme();
-  const variants:Record<string,React.CSSProperties> = {
+  const variants = {
     primary:{ background: dark ? T.accentLight : T.black, color: dark ? T.accentDark : "#fff", border: dark ? `1px solid ${T.accent}` : "none" },
     green:  { background:T.accent, color:"#fff", boxShadow:`0 4px 16px rgba(90,178,51,.25)` },
     ghost:  { background:"transparent", color:T.muted2, border:`1px solid ${T.border}` },
@@ -220,14 +239,14 @@ function Btn({ children, variant="primary", onClick, style={}, small=false, disa
         cursor: disabled?"not-allowed":"pointer", transition:"all .2s", border:"none",
         opacity: disabled?0.6:1, ...(variants[variant]||{}), ...style }}
       onClick={onClick}
-      onMouseEnter={e=>{ if(!disabled){(e.currentTarget).style.opacity=".82";(e.currentTarget).style.transform="translateY(-1px)";} }}
-      onMouseLeave={e=>{ (e.currentTarget).style.opacity="1";(e.currentTarget).style.transform="translateY(0)"; }}>
+      onMouseEnter={e=>{ if(!disabled){e.currentTarget.style.opacity=".82";e.currentTarget.style.transform="translateY(-1px)";} }}
+      onMouseLeave={e=>{ e.currentTarget.style.opacity="1";e.currentTarget.style.transform="translateY(0)"; }}>
       {children}
     </button>
   );
 }
 
-function Card({ children, style={}, hover=true }:{ children:ReactNode; style?:React.CSSProperties; hover?:boolean }) {
+function Card({ children, style={}, hover=true }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);
   return (
@@ -240,12 +259,12 @@ function Card({ children, style={}, hover=true }:{ children:ReactNode; style?:Re
   );
 }
 
-function SectionLabel({ children }:{ children:ReactNode }) {
+function SectionLabel({ children }) {
   const { T } = useTheme();
   return <div style={{ fontSize:11, letterSpacing:"2px", textTransform:"uppercase", color:T.accentDark, fontWeight:600, marginBottom:10 }}>{children}</div>;
 }
 
-function SectionTitle({ children }:{ children:ReactNode }) {
+function SectionTitle({ children }) {
   const { T } = useTheme();
   return <h2 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontSize:"clamp(24px,4vw,44px)", fontWeight:800, letterSpacing:"-1px", lineHeight:1.1, color:T.text }}>{children}</h2>;
 }
@@ -267,7 +286,7 @@ function ThemeToggle() {
   );
 }
 
-function Field({ label, type, placeholder, name, required=true }:{ label:string; type:string; placeholder:string; name:string; required?:boolean }) {
+function Field({ label, type, placeholder, name, required = true }) {
   const { T } = useTheme();
   return (
     <div style={{ marginBottom:14 }}>
@@ -275,13 +294,13 @@ function Field({ label, type, placeholder, name, required=true }:{ label:string;
       <input name={name} type={type} placeholder={placeholder} required={required}
         style={{ width:"100%", padding:"11px 14px", background:T.inputBg, border:`1.5px solid ${T.border}`,
           borderRadius:9, color:T.text, fontSize:14, fontFamily:"'Plus Jakarta Sans',sans-serif", outline:"none" }}
-        onFocus={e=>(e.target as HTMLInputElement).style.borderColor=T.accent}
-        onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+        onFocus={e=>e.target.style.borderColor=T.accent}
+        onBlur={e=>e.target.style.borderColor=T.border}/>
     </div>
   );
 }
 
-function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }:{ open:boolean; onClose:()=>void; defaultTab?:string; onAuthenticated:(user:AuthUser)=>void }) {
+function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }) {
   const { T } = useTheme();
   const [tab, setTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
@@ -289,29 +308,37 @@ function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }:{ open
   useEffect(()=>{ setTab(defaultTab); },[defaultTab, open]);
   useEffect(()=>{ if(open) setError(""); },[open, tab]);
   useEffect(()=>{
-    const h=(e:KeyboardEvent)=>{ if(e.key==="Escape") onClose(); };
+    const h=(e)=>{ if(e.key==="Escape") onClose(); };
     window.addEventListener("keydown",h);
     return ()=>window.removeEventListener("keydown",h);
   },[onClose]);
 
-  async function submit(formData: FormData) {
+  async function handleSubmit(e) {
+    e.preventDefault();
     setLoading(true);
     setError("");
+
+    const formData = new FormData(e.currentTarget);
+    const payload = {
+      name: String(formData.get("name") || ""),
+      email: String(formData.get("email") || ""),
+      password: String(formData.get("password") || ""),
+    };
+
     try {
       const endpoint = tab === "login" ? "/api/auth/login" : "/api/auth/register";
-      const payload = {
-        name: String(formData.get("name") ?? ""),
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? "")
-      };
-      const result = await api<{ token:string; user:AuthUser }>(endpoint, {
-        method:"POST",
-        body:JSON.stringify(tab === "login" ? { email:payload.email, password:payload.password } : payload)
+      const result = await api(endpoint, {
+        method: "POST",
+        body: JSON.stringify(
+          tab === "login"
+            ? { email: payload.email, password: payload.password }
+            : payload
+        ),
       });
       setToken(result.token);
       onAuthenticated(result.user);
       onClose();
-    } catch(err) {
+    } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
@@ -346,7 +373,7 @@ function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }:{ open
             </button>
           ))}
         </div>
-        <form action={submit}>
+        <form onSubmit={handleSubmit}>
           {tab==="signup"&&<Field name="name" label="Full name" type="text" placeholder="Your name"/>}
           <Field name="email" label="Email address" type="email" placeholder="you@example.com"/>
           <Field name="password" label="Password" type="password" placeholder="Use a strong password"/>
@@ -357,10 +384,10 @@ function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }:{ open
             </div>
           )}
           <button disabled={loading} style={{ width:"100%", padding:13, borderRadius:10, background:T.accent,
-            color:"#fff", border:"none", fontSize:14, fontWeight:600, opacity:loading ? .75 : 1,
+            color:"#fff", border:"none", fontSize:14, fontWeight:600, opacity:loading ? .72 : 1,
             fontFamily:"'Plus Jakarta Sans',sans-serif", cursor:loading?"not-allowed":"pointer", marginTop:4, transition:"all .2s" }}
-            onMouseEnter={e=>{ if(!loading) (e.currentTarget).style.opacity=".85"; }}
-            onMouseLeave={e=>{ if(!loading) (e.currentTarget).style.opacity="1"; }}>
+            onMouseEnter={e=>{ if(!loading) e.currentTarget.style.opacity=".85"; }}
+            onMouseLeave={e=>{ if(!loading) e.currentTarget.style.opacity="1"; }}>
             {loading ? "Please wait..." : tab==="login"?"Log In →":"Create Account →"}
           </button>
         </form>
@@ -377,8 +404,7 @@ function AuthModal({ open, onClose, defaultTab="login", onAuthenticated }:{ open
 /* ══════════════════════════════════════
    TOAST
 ══════════════════════════════════════ */
-interface ToastItem { id:number; msg:string; type:string; }
-function Toast({ toasts, remove }:{ toasts:ToastItem[]; remove:(id:number)=>void }) {
+function Toast({ toasts, remove }) {
   const { T } = useTheme();
   return (
     <div style={{ position:"fixed", bottom:18, right:14, zIndex:9999,
@@ -399,20 +425,20 @@ function Toast({ toasts, remove }:{ toasts:ToastItem[]; remove:(id:number)=>void
   );
 }
 function useToast() {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const add = (msg:string, type="success") => {
+  const [toasts, setToasts] = useState([]);
+  const add = (msg, type="success") => {
     const id = Date.now();
     setToasts(t=>[...t,{id,msg,type}]);
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);
   };
-  const remove = (id:number) => setToasts(t=>t.filter(x=>x.id!==id));
+  const remove = (id) => setToasts(t=>t.filter(x=>x.id!==id));
   return { toasts, add, remove };
 }
 
 /* ══════════════════════════════════════
    NOTIFICATION PANEL
 ══════════════════════════════════════ */
-function NotifPanel({ open, onClose }:{ open:boolean; onClose:()=>void }) {
+function NotifPanel({ open, onClose }) {
   const { T } = useTheme();
   const items = [
     { icon:"📈", title:"AAPL hit your price target",       time:"2 min ago",  unread:true  },
@@ -457,9 +483,7 @@ function NotifPanel({ open, onClose }:{ open:boolean; onClose:()=>void }) {
 /* ══════════════════════════════════════
    ALL MODULES
 ══════════════════════════════════════ */
-interface ModuleItem { label:string; icon:string; page:string; }
-interface Module { id:string; icon:string; color:string; name:string; desc:string; items:ModuleItem[]; }
-const ALL_MODULES:Module[] = [
+const ALL_MODULES = [
   { id:"trading",icon:"📈",color:"#5ab233",name:"Trading",desc:"Trade journals, watchlists, risk tools & analytics",
     items:[
       {label:"Trade Journal",icon:"📓",page:"trade-journal"},
@@ -552,10 +576,9 @@ const ALL_MODULES:Module[] = [
 /* ══════════════════════════════════════
    APP SIDEBAR
 ══════════════════════════════════════ */
-function AppSidebar({ setPage, sideOpen, setSideOpen }:
-  { page:string; setPage:(p:string)=>void; sideOpen:boolean; setSideOpen:Dispatch<SetStateAction<boolean>> }) {
+function AppSidebar({ setPage, sideOpen, setSideOpen }) {
   const { T, dark } = useTheme();
-  const [expandedCat, setExpandedCat] = useState<string|null>("trading");
+  const [expandedCat, setExpandedCat] = useState("trading");
   return (
     <>
       {sideOpen&&<div onClick={()=>setSideOpen(false)}
@@ -578,8 +601,8 @@ function AppSidebar({ setPage, sideOpen, setSideOpen }:
               <div onClick={()=>setExpandedCat(expandedCat===cat.id?null:cat.id)}
                 style={{ display:"flex",alignItems:"center",gap:10,padding:"9px 16px",cursor:"pointer",
                   background:expandedCat===cat.id?`${cat.color}12`:"transparent",transition:"background .2s" }}
-                onMouseEnter={e=>(e.currentTarget as HTMLDivElement).style.background=`${cat.color}10`}
-                onMouseLeave={e=>(e.currentTarget as HTMLDivElement).style.background=expandedCat===cat.id?`${cat.color}12`:"transparent"}>
+                onMouseEnter={e=>e.currentTarget.style.background=`${cat.color}10`}
+                onMouseLeave={e=>e.currentTarget.style.background=expandedCat===cat.id?`${cat.color}12`:"transparent"}>
                 <span style={{ width:28,height:28,borderRadius:7,flexShrink:0,
                   background:`${cat.color}18`,display:"grid",placeItems:"center",fontSize:14 }}>{cat.icon}</span>
                 <div style={{ flex:1,minWidth:0 }}>
@@ -596,8 +619,8 @@ function AppSidebar({ setPage, sideOpen, setSideOpen }:
                       style={{ display:"flex",alignItems:"center",gap:8,
                         padding:"7px 16px 7px 32px",cursor:"pointer",transition:"all .15s",
                         borderLeft:"2px solid transparent" }}
-                      onMouseEnter={e=>{ const el=e.currentTarget as HTMLDivElement; el.style.background=`${cat.color}10`; el.style.borderLeftColor=cat.color; }}
-                      onMouseLeave={e=>{ const el=e.currentTarget as HTMLDivElement; el.style.background="transparent"; el.style.borderLeftColor="transparent"; }}>
+                      onMouseEnter={e=>{ const el=e.currentTarget; el.style.background=`${cat.color}10`; el.style.borderLeftColor=cat.color; }}
+                      onMouseLeave={e=>{ const el=e.currentTarget; el.style.background="transparent"; el.style.borderLeftColor="transparent"; }}>
                       <span style={{ fontSize:13 }}>{item.icon}</span>
                       <span style={{ fontSize:12,color:T.muted2 }}>{item.label}</span>
                     </div>
@@ -615,9 +638,7 @@ function AppSidebar({ setPage, sideOpen, setSideOpen }:
 /* ══════════════════════════════════════
    NAV
 ══════════════════════════════════════ */
-function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut }:
-  { page:string; setPage:(p:string)=>void; onAuth:(t:string)=>void;
-    sideOpen:boolean; setSideOpen:Dispatch<SetStateAction<boolean>>; user:AuthUser|null; onSignOut:()=>void }) {
+function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut }) {
   const { T, dark } = useTheme();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -631,7 +652,7 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
     {id:"financial-statements",label:"Financials",icon:"🏦"},
     {id:"settings",label:"Settings",icon:"⚙️"},
   ];
-  const landingLinks:[string,string][] = [["home","Home"],["tools","Tools"],["features","Features"],["pricing","Pricing"]];
+  const landingLinks = [["home","Home"],["tools","Tools"],["features","Features"],["pricing","Pricing"]];
 
   return (
     <>
@@ -667,8 +688,8 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
             <a key={id} href={`#${id}`}
               style={{ padding:"7px 13px",borderRadius:8,fontSize:13,
                 color:T.muted2,textDecoration:"none",transition:"all .2s" }}
-              onMouseEnter={e=>{ const a=e.target as HTMLAnchorElement; a.style.color=T.text; a.style.background=dark?"rgba(255,255,255,.05)":"rgba(0,0,0,.04)"; }}
-              onMouseLeave={e=>{ const a=e.target as HTMLAnchorElement; a.style.color=T.muted2; a.style.background="transparent"; }}>
+              onMouseEnter={e=>{ const a=e.target; a.style.color=T.text; a.style.background=dark?"rgba(255,255,255,.05)":"rgba(0,0,0,.04)"; }}
+              onMouseLeave={e=>{ const a=e.target; a.style.color=T.muted2; a.style.background="transparent"; }}>
               {label}
             </a>
           ))}
@@ -708,8 +729,8 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
                       background:T.card,border:`1.5px solid ${T.border}`,borderRadius:14,
                       boxShadow:`0 12px 40px ${T.shadowHov}`,overflow:"hidden",animation:"slideDown .2s ease" }}>
                       <div style={{ padding:"12px 14px",borderBottom:`1px solid ${T.border}` }}>
-                        <div style={{ fontWeight:600,fontSize:13,color:T.text }}>{user?.name ?? "LedgrNow User"}</div>
-                        <div style={{ fontSize:11,color:T.muted }}>{user?.email ?? "Signed in"}</div>
+                        <div style={{ fontWeight:600,fontSize:13,color:T.text }}>{user?.name || "LedgrNow User"}</div>
+                        <div style={{ fontSize:11,color:T.muted }}>{user?.email || "Signed in"}</div>
                       </div>
                       {[
                         {icon:"⚙️",label:"Settings",action:()=>{ setPage("settings"); setProfileOpen(false); }},
@@ -721,9 +742,9 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
                           style={{ display:"flex",alignItems:"center",gap:9,width:"100%",
                             padding:"10px 14px",border:"none",background:"transparent",
                             cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,
-                            color:(item as any).danger?T.negative:T.muted2,textAlign:"left",transition:"background .15s" }}
-                          onMouseEnter={e=>(e.currentTarget).style.background=T.bg2}
-                          onMouseLeave={e=>(e.currentTarget).style.background="transparent"}>
+                            color:(item).danger?T.negative:T.muted2,textAlign:"left",transition:"background .15s" }}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           {item.icon} {item.label}
                         </button>
                       ))}
@@ -735,8 +756,8 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
           ) : (
             <>
               <div className="ln-nav-desktop-btns" style={{ display:"flex",gap:8 }}>
-                <Btn variant="ghost" onClick={() => onAuth("login")} small>Log in</Btn>
-                <Btn variant="green" onClick={() => onAuth("signup")} small>Get Started</Btn>
+                <Btn variant="ghost" onClick={()=>onAuth("login")} small>Log in</Btn>
+                <Btn variant="green" onClick={()=>onAuth("signup")} small>Get Started</Btn>
               </div>
               <button className="ln-hamburger" onClick={()=>setMobileOpen(o=>!o)}
                 style={{ border:`1px solid ${T.border}`,borderRadius:8 }}>
@@ -774,7 +795,7 @@ function NavFull({ page, setPage, onAuth, sideOpen, setSideOpen, user, onSignOut
 /* ══════════════════════════════════════
    HERO
 ══════════════════════════════════════ */
-function Hero({ setPage }:{ setPage:(p:string)=>void }) {
+function Hero({ setPage }) {
   const { T, dark } = useTheme();
   return (
     <section id="home" className="ln-hero-section" style={{ background:T.bg, transition:"background .3s" }}>
@@ -817,9 +838,9 @@ function Hero({ setPage }:{ setPage:(p:string)=>void }) {
 /* ══════════════════════════════════════
    TOOLS SECTION
 ══════════════════════════════════════ */
-function ToolsSection({ setPage }:{ setPage:(p:string)=>void }) {
+function ToolsSection({ setPage }) {
   const { T, dark } = useTheme();
-  const [open, setOpen] = useState<string|null>(null);
+  const [open, setOpen] = useState(null);
   return (
     <section id="tools" className="ln-tools-section" style={{ background:T.bg2 }}>
       <div style={{ textAlign:"center", marginBottom:52 }}>
@@ -841,8 +862,8 @@ function ToolsSection({ setPage }:{ setPage:(p:string)=>void }) {
                 borderRadius: open===cat.id ? "14px 14px 0 0" : 14,
                 padding:"16px 20px", cursor:"pointer", transition:"all .25s",
                 boxShadow: open===cat.id ? `0 8px 32px ${cat.color}30` : dark?"none":"0 2px 12px rgba(0,0,0,.06)" }}
-              onMouseEnter={e=>{ if(open!==cat.id){ const el=e.currentTarget as HTMLDivElement; el.style.borderColor=cat.color; el.style.boxShadow=`0 4px 20px ${cat.color}20`; } }}
-              onMouseLeave={e=>{ if(open!==cat.id){ const el=e.currentTarget as HTMLDivElement; el.style.borderColor=T.border; el.style.boxShadow=dark?"none":"0 2px 12px rgba(0,0,0,.06)"; } }}>
+              onMouseEnter={e=>{ if(open!==cat.id){ const el=e.currentTarget; el.style.borderColor=cat.color; el.style.boxShadow=`0 4px 20px ${cat.color}20`; } }}
+              onMouseLeave={e=>{ if(open!==cat.id){ const el=e.currentTarget; el.style.borderColor=T.border; el.style.boxShadow=dark?"none":"0 2px 12px rgba(0,0,0,.06)"; } }}>
               <div style={{ width:46, height:46, borderRadius:12, flexShrink:0,
                 background:`${cat.color}20`, display:"grid", placeItems:"center",
                 fontSize:22, border:`1.5px solid ${cat.color}30`,
@@ -887,8 +908,8 @@ function ToolsSection({ setPage }:{ setPage:(p:string)=>void }) {
                         borderRadius:10, background: dark ? T.bg3 : T.bg2,
                         border:`1.5px solid ${T.border}`, cursor:"pointer",
                         transition:"all .2s", fontSize:12, color:T.muted2, fontWeight:500 }}
-                      onMouseEnter={e=>{ const el=e.currentTarget as HTMLDivElement; el.style.background=`${cat.color}15`; el.style.borderColor=cat.color; el.style.color=T.text; el.style.transform="translateY(-1px)"; el.style.boxShadow=`0 4px 12px ${cat.color}20`; }}
-                      onMouseLeave={e=>{ const el=e.currentTarget as HTMLDivElement; el.style.background=dark?T.bg3:T.bg2; el.style.borderColor=T.border; el.style.color=T.muted2; el.style.transform="translateY(0)"; el.style.boxShadow="none"; }}>
+                      onMouseEnter={e=>{ const el=e.currentTarget; el.style.background=`${cat.color}15`; el.style.borderColor=cat.color; el.style.color=T.text; el.style.transform="translateY(-1px)"; el.style.boxShadow=`0 4px 12px ${cat.color}20`; }}
+                      onMouseLeave={e=>{ const el=e.currentTarget; el.style.background=dark?T.bg3:T.bg2; el.style.borderColor=T.border; el.style.color=T.muted2; el.style.transform="translateY(0)"; el.style.boxShadow="none"; }}>
                       <span style={{ fontSize:15, flexShrink:0 }}>{item.icon}</span>
                       <span style={{ lineHeight:1.3 }}>{item.label}</span>
                     </div>
@@ -940,7 +961,7 @@ const FEATS = [
     desc:"Generate tax-ready reports, export trades to CSV, send financial summaries in one click.",
     tags:["Tax Reports","CSV / PDF"] },
 ];
-function FeatCard({ icon,title,desc,tags,big }:{ icon:string;title:string;desc:string;tags:string[];big:boolean }) {
+function FeatCard({ icon,title,desc,tags,big }) {
   const { T } = useTheme();
   const [hov,setHov] = useState(false);
   return (
@@ -996,7 +1017,7 @@ const PLANS = [
     features:["Everything in Pro","Team Accounts (10 seats)","Tax & Compliance Reports","Unlimited Exchanges","Custom Invoice Branding","Priority Support","API Access"],
     missing:[] },
 ];
-function PlanCard({ plan,annual,onAuth }:{ plan:typeof PLANS[0];annual:boolean;onAuth:(t:string)=>void }) {
+function PlanCard({ plan,annual,onAuth }) {
   const { T } = useTheme();
   const price = annual?plan.annual:plan.monthly;
   return (
@@ -1047,7 +1068,7 @@ function PlanCard({ plan,annual,onAuth }:{ plan:typeof PLANS[0];annual:boolean;o
     </div>
   );
 }
-function PricingSection({ onAuth }:{ onAuth:(t:string)=>void }) {
+function PricingSection({ onAuth }) {
   const { T } = useTheme();
   const [annual,setAnnual] = useState(true);
   return (
@@ -1055,7 +1076,7 @@ function PricingSection({ onAuth }:{ onAuth:(t:string)=>void }) {
       <div style={{ textAlign:"center",marginBottom:48 }}>
         <SectionLabel>Pricing</SectionLabel>
         <SectionTitle>Simple, Transparent Plans</SectionTitle>
-        <p style={{ fontSize:"clamp(13px,2vw,15px)",color:T.muted2,marginTop:12 }}>Start free. Scale as you grow. No hidden fees.</p>
+        <p style={{ fontSize:"clamp(13px,2vw,15px)",color:T.muted2,marginTop:12 }}>Start free. Scale grow. No hidden fees.</p>
         <div style={{ display:"inline-flex",alignItems:"center",gap:10,marginTop:18,
           background:T.bg3,borderRadius:50,padding:"6px 18px",fontSize:13,color:T.muted2,
           border:`1px solid ${T.border}`,flexWrap:"wrap",justifyContent:"center" }}>
@@ -1081,7 +1102,7 @@ function PricingSection({ onAuth }:{ onAuth:(t:string)=>void }) {
 /* ══════════════════════════════════════
    FOOTER
 ══════════════════════════════════════ */
-function Footer({ setPage }:{ setPage:(p:string)=>void }) {
+function Footer({ setPage }) {
   const cols = [
     {heading:"Menu",links:["Home","Features","Pricing","Blog"]},
     {heading:"Navigation",links:["Trading","Journal","Financials","Invoices","Watchlist"]},
@@ -1116,8 +1137,8 @@ function Footer({ setPage }:{ setPage:(p:string)=>void }) {
             <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
               {col.links.map(l=>(
                 <a key={l} href="#" style={{ fontSize:13,color:"rgba(255,255,255,.5)",textDecoration:"none",transition:"color .2s" }}
-                  onMouseEnter={e=>(e.target as HTMLAnchorElement).style.color="#fff"}
-                  onMouseLeave={e=>(e.target as HTMLAnchorElement).style.color="rgba(255,255,255,.5)"}>{l}</a>
+                  onMouseEnter={e=>e.target.style.color="#fff"}
+                  onMouseLeave={e=>e.target.style.color="rgba(255,255,255,.5)"}>{l}</a>
               ))}
             </div>
           </div>
@@ -1137,12 +1158,12 @@ function Footer({ setPage }:{ setPage:(p:string)=>void }) {
 /* ══════════════════════════════════════
    DASHBOARD
 ══════════════════════════════════════ */
-function Dashboard({ setPage }:{ setPage:(p:string)=>void }) {
+function Dashboard({ setPage }) {
   const { T } = useTheme();
   const stats = [
     {label:"Portfolio Value",value:"$84,320",change:"+2.4%",up:true,icon:"💼"},
     {label:"Today's P&L",value:"+$1,240",change:"+1.5%",up:true,icon:"📈"},
-    {label:"Open Positions",value:"7",change:"3 long / 4 short",up:null as null,icon:"🎯"},
+    {label:"Open Positions",value:"7",change:"3 long / 4 short",up:null,icon:"🎯"},
     {label:"Win Rate (30d)",value:"64.2%",change:"+3.1% vs last mo",up:true,icon:"🏆"},
   ];
   const trades = [
@@ -1254,17 +1275,16 @@ function Dashboard({ setPage }:{ setPage:(p:string)=>void }) {
 /* ══════════════════════════════════════
    JOURNAL
 ══════════════════════════════════════ */
-interface JEntry { id:number;date:string;symbol:string;side:string;entry:number;exit:number;qty:number;pnl:number;emotion:string;notes:string; }
-function Journal({ toast }:{ toast:(m:string,t?:string)=>void }) {
+function Journal({ toast }) {
   const { T } = useTheme();
-  const [entries,setEntries] = useState<JEntry[]>([
+  const [entries,setEntries] = useState([
     {id:1,date:"2024-01-15",symbol:"AAPL",side:"BUY",entry:180,exit:188,qty:10,pnl:80,emotion:"Confident",notes:"Strong earnings beat"},
     {id:2,date:"2024-01-14",symbol:"TSLA",side:"SELL",entry:250,exit:242,qty:5,pnl:40,emotion:"Neutral",notes:"Technical resistance at 250"},
     {id:3,date:"2024-01-12",symbol:"NVDA",side:"BUY",entry:610,exit:598,qty:2,pnl:-24,emotion:"Anxious",notes:"Chased the move — mistake"},
   ]);
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({symbol:"",side:"BUY",entry:"",exit:"",qty:"",emotion:"Neutral",notes:""});
-  const inp:React.CSSProperties = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
+  const inp = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
   const addEntry = () => {
     if(!form.symbol||!form.entry||!form.exit) return;
     const pnl=(parseFloat(form.exit)-parseFloat(form.entry))*parseInt(form.qty||"1")*(form.side==="SELL"?-1:1);
@@ -1294,7 +1314,7 @@ function Journal({ toast }:{ toast:(m:string,t?:string)=>void }) {
         ].map(s=>(
           <Card key={s.label} style={{ padding:"14px" }}>
             <div style={{ fontSize:11,color:T.muted,marginBottom:5 }}>{s.label}</div>
-            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s as any).color||T.text }}>{s.value}</div>
+            <div style={{ fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s).color||T.text }}>{s.value}</div>
           </Card>
         ))}
       </div>
@@ -1306,10 +1326,10 @@ function Journal({ toast }:{ toast:(m:string,t?:string)=>void }) {
               {key:"exit",label:"Exit Price",ph:"188.00",t:"number"},{key:"qty",label:"Quantity",ph:"10",t:"number"}].map(f=>(
               <div key={f.key}>
                 <label style={{ fontSize:11,color:T.muted2,display:"block",marginBottom:4 }}>{f.label}</label>
-                <input value={(form as any)[f.key]} type={f.t||"text"}
+                <input value={(form)[f.key]} type={f.t||"text"}
                   onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph} style={inp}
-                  onFocus={e=>(e.target as HTMLInputElement).style.borderColor=T.accent}
-                  onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                  onFocus={e=>e.target.style.borderColor=T.accent}
+                  onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             ))}
             <div>
@@ -1330,8 +1350,8 @@ function Journal({ toast }:{ toast:(m:string,t?:string)=>void }) {
             <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}
               placeholder="What was your rationale?" rows={3}
               style={{ ...inp,resize:"vertical" }}
-              onFocus={e=>(e.target as HTMLTextAreaElement).style.borderColor=T.accent}
-              onBlur={e=>(e.target as HTMLTextAreaElement).style.borderColor=T.border}/>
+              onFocus={e=>e.target.style.borderColor=T.accent}
+              onBlur={e=>e.target.style.borderColor=T.border}/>
           </div>
           <div style={{ display:"flex",gap:10,marginTop:12,flexWrap:"wrap" }}>
             <Btn variant="green" onClick={addEntry}>Save Entry</Btn>
@@ -1369,7 +1389,7 @@ function Journal({ toast }:{ toast:(m:string,t?:string)=>void }) {
 /* ══════════════════════════════════════
    FINANCIALS
 ══════════════════════════════════════ */
-const FIN_DATA:{[k:string]:{headers:string[];rows:string[][]}} = {
+const FIN_DATA = {
   income:{headers:["","2023","2022","2021"],rows:[["Revenue","$383.3B","$394.3B","$365.8B"],["Gross Profit","$169.1B","$170.8B","$152.8B"],["Operating Income","$114.3B","$119.4B","$108.9B"],["Net Income","$97.0B","$99.8B","$94.7B"]]},
   balance:{headers:["","2023","2022","2021"],rows:[["Total Assets","$352.6B","$352.8B","$351.0B"],["Cash & Equiv.","$29.9B","$23.6B","$34.9B"],["Total Debt","$109.3B","$120.1B","$124.7B"],["Total Equity","$62.1B","$50.7B","$63.1B"]]},
   cashflow:{headers:["","2023","2022","2021"],rows:[["Operating CF","$110.5B","$122.2B","$104.0B"],["Investing CF","$-21.0B","$-22.3B","$-14.5B"],["Free Cash Flow","$99.6B","$111.4B","$93.0B"],["CapEx","$-10.9B","$-10.7B","$-11.0B"]]},
@@ -1380,8 +1400,8 @@ function Financials() {
   const [input,setInput] = useState("AAPL");
   const [tab,setTab] = useState("income");
   const data = FIN_DATA[tab];
-  const names:{[k:string]:string} = {AAPL:"Apple Inc.",MSFT:"Microsoft Corporation",TSLA:"Tesla Inc.",NVDA:"NVIDIA Corporation"};
-  const inp:React.CSSProperties = { flex:1,padding:"10px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
+  const names = {AAPL:"Apple Inc.",MSFT:"Microsoft Corporation",TSLA:"Tesla Inc.",NVDA:"NVIDIA Corporation"};
+  const inp = { flex:1,padding:"10px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
   return (
     <div className="ln-page" style={{ background:T.bg2 }}>
       <div style={{ marginBottom:22 }}>
@@ -1392,8 +1412,8 @@ function Financials() {
         <div style={{ display:"flex",gap:10,alignItems:"center",flexWrap:"wrap" }}>
           <input value={input} onChange={e=>setInput(e.target.value.toUpperCase())}
             onKeyDown={e=>e.key==="Enter"&&setTicker(input)} placeholder="Enter ticker (e.g. AAPL, MSFT)"
-            style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor=T.accent}
-            onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+            style={inp} onFocus={e=>e.target.style.borderColor=T.accent}
+            onBlur={e=>e.target.style.borderColor=T.border}/>
           <Btn variant="green" onClick={()=>setTicker(input)}>Search</Btn>
         </div>
       </Card>
@@ -1452,24 +1472,22 @@ function Financials() {
 /* ══════════════════════════════════════
    INVOICES
 ══════════════════════════════════════ */
-interface Invoice { id:string;client:string;date:string;due:string;amount:number;status:string; }
-interface LineItem { desc:string;qty:number;rate:string; }
-function Invoices({ toast }:{ toast:(m:string,t?:string)=>void }) {
+function Invoices({ toast }) {
   const { T } = useTheme();
-  const [invoices,setInvoices] = useState<Invoice[]>([
+  const [invoices,setInvoices] = useState([
     {id:"INV-001",client:"Acme Corp",date:"2024-01-15",due:"2024-02-15",amount:4500,status:"Paid"},
     {id:"INV-002",client:"Beta Solutions",date:"2024-01-10",due:"2024-02-10",amount:12000,status:"Pending"},
     {id:"INV-003",client:"Gamma Traders",date:"2024-01-05",due:"2024-02-05",amount:750,status:"Overdue"},
     {id:"INV-004",client:"Delta Investments",date:"2024-01-20",due:"2024-02-20",amount:3200,status:"Draft"},
   ]);
   const [showNew,setShowNew] = useState(false);
-  const [form,setForm] = useState({client:"",email:"",items:[{desc:"",qty:1,rate:""}] as LineItem[]});
+  const [form,setForm] = useState({client:"",email:"",items:[{desc:"",qty:1,rate:""}][]});
   const total = form.items.reduce((s,it)=>s+(parseFloat(it.rate)||0)*it.qty,0);
-  const sc:{[k:string]:{bg:string;color:string}} = {
+  const sc:{[k]:{bg;color}} = {
     Paid:{bg:T.positiveBg,color:T.positive},Pending:{bg:T.warnBg,color:T.warn},
     Overdue:{bg:T.negativeBg,color:T.negative},Draft:{bg:T.bg3,color:T.muted},
   };
-  const inp:React.CSSProperties = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
+  const inp = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
   const saveInvoice = () => {
     if(!form.client) return;
     const id=`INV-00${invoices.length+1}`;
@@ -1511,9 +1529,9 @@ function Invoices({ toast }:{ toast:(m:string,t?:string)=>void }) {
             {[{key:"client",label:"Client Name",ph:"Acme Corporation"},{key:"email",label:"Client Email",ph:"billing@client.com"}].map(f=>(
               <div key={f.key}>
                 <label style={{ fontSize:11,color:T.muted2,display:"block",marginBottom:4 }}>{f.label}</label>
-                <input value={(form as any)[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}
-                  placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor=T.accent}
-                  onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                <input value={(form)[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}
+                  placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor=T.accent}
+                  onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             ))}
           </div>
@@ -1679,14 +1697,14 @@ function Watchlist() {
 /* ══════════════════════════════════════
    SETTINGS
 ══════════════════════════════════════ */
-function Settings({ toast }:{ toast:(m:string,t?:string)=>void }) {
+function Settings({ toast }) {
   const { T } = useTheme();
   const [profile,setProfile] = useState({name:"Alex Johnson",email:"alex@ledgrnow.com",timezone:"UTC+5:30",currency:"USD"});
   const [notifs,setNotifs] = useState({email:true,pnlAlerts:true,invoiceDue:true,weeklyReport:false,marketNews:false});
   const [activeTab,setActiveTab] = useState("profile");
   const tabs = [{id:"profile",label:"Profile",icon:"👤"},{id:"notifs",label:"Notifications",icon:"🔔"},
     {id:"api",label:"API Keys",icon:"🔑"},{id:"billing",label:"Billing",icon:"💳"},{id:"security",label:"Security",icon:"🔐"}];
-  const inp:React.CSSProperties = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
+  const inp = { width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text };
   return (
     <div className="ln-page" style={{ background:T.bg2 }}>
       <div style={{ marginBottom:22 }}>
@@ -1727,10 +1745,10 @@ function Settings({ toast }:{ toast:(m:string,t?:string)=>void }) {
                   {key:"timezone",label:"Timezone"},{key:"currency",label:"Currency"}].map(f=>(
                   <div key={f.key}>
                     <label style={{ fontSize:11,color:T.muted2,display:"block",marginBottom:4 }}>{f.label}</label>
-                    <input value={(profile as any)[f.key]}
+                    <input value={(profile)[f.key]}
                       onChange={e=>setProfile(p=>({...p,[f.key]:e.target.value}))}
-                      style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor=T.accent}
-                      onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                      style={inp} onFocus={e=>e.target.style.borderColor=T.accent}
+                      onBlur={e=>e.target.style.borderColor=T.border}/>
                   </div>
                 ))}
               </div>
@@ -1753,12 +1771,12 @@ function Settings({ toast }:{ toast:(m:string,t?:string)=>void }) {
                     <div style={{ fontWeight:500,fontSize:14,color:T.text }}>{n.label}</div>
                     <div style={{ fontSize:12,color:T.muted,marginTop:2 }}>{n.desc}</div>
                   </div>
-                  <div onClick={()=>setNotifs(p=>({...p,[n.key]:!(p as any)[n.key]}))}
+                  <div onClick={()=>setNotifs(p=>({...p,[n.key]:!(p)[n.key]}))}
                     style={{ width:40,height:21,borderRadius:11,cursor:"pointer",position:"relative",
-                      background:(notifs as any)[n.key]?T.accent:T.bg3,transition:"background .2s",flexShrink:0 }}>
+                      background:(notifs)[n.key]?T.accent:T.bg3,transition:"background .2s",flexShrink:0 }}>
                     <div style={{ position:"absolute",top:2.5,left:2.5,width:16,height:16,
                       borderRadius:"50%",background:"#fff",transition:"transform .2s",
-                      transform:(notifs as any)[n.key]?"translateX(19px)":"none",
+                      transform:(notifs)[n.key]?"translateX(19px)":"none",
                       boxShadow:"0 1px 4px rgba(0,0,0,.2)" }}/>
                   </div>
                 </div>
@@ -1795,8 +1813,8 @@ function AIAssistant() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const endRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(()=>{
     if(open) setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),100);
@@ -1828,7 +1846,7 @@ function AIAssistant() {
     } finally { setLoading(false); }
   };
 
-  const renderContent = (text:string) =>
+  const renderContent = (text) =>
     text.split("\n").map((line,i)=>{
       const parts = line.split(/\*\*(.*?)\*\*/g).map((p,j)=>j%2===1?<strong key={j}>{p}</strong>:p);
       if(line.startsWith("- ")||line.startsWith("• "))
@@ -1959,8 +1977,8 @@ function AIAssistant() {
                 background:T.inputBg,color:T.text,fontSize:13,
                 fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",
                 resize:"none",lineHeight:1.5,maxHeight:88,overflowY:"auto",transition:"border-color .2s" }}
-              onFocus={e=>(e.target as HTMLTextAreaElement).style.borderColor=T.accent}
-              onBlur={e=>(e.target as HTMLTextAreaElement).style.borderColor=input?T.accent:T.border}/>
+              onFocus={e=>e.target.style.borderColor=T.accent}
+              onBlur={e=>e.target.style.borderColor=input?T.accent:T.border}/>
             <button onClick={sendMessage} disabled={!input.trim()||loading}
               style={{ width:36,height:36,borderRadius:10,border:"none",flexShrink:0,
                 background:input.trim()&&!loading?T.accent:T.bg3,
@@ -1983,8 +2001,7 @@ function AIAssistant() {
 /* ══════════════════════════════════════
    SHARED PAGE SHELL
 ══════════════════════════════════════ */
-function PageShell({ title, icon, color="#5ab233", desc, children, setPage }:
-  { title:string; icon:string; color?:string; desc?:string; children:ReactNode; setPage?:(p:string)=>void }) {
+function PageShell({ title, icon, color="#5ab233", desc, children, setPage }) {
   const { T } = useTheme();
   return (
     <div className="ln-page" style={{ background:T.bg2 }}>
@@ -2005,12 +2022,11 @@ function PageShell({ title, icon, color="#5ab233", desc, children, setPage }:
 }
 
 /* Generic form/list page for simpler modules */
-function GenericPage({ title, icon, color="#5ab233", desc, fields }:
-  { title:string; icon:string; color?:string; desc?:string; fields:string[] }) {
+function GenericPage({ title, icon, color="#5ab233", desc, fields }) {
   const { T } = useTheme();
-  const [rows, setRows] = useState<Record<string,string>[]>([{}]);
+  const [rows, setRows] = useState[]>([{}]);
   const addRow = () => setRows(r=>[...r,{}]);
-  const inp:React.CSSProperties = { width:"100%", padding:"9px 11px", borderRadius:8,
+  const inp = { width:"100%", padding:"9px 11px", borderRadius:8,
     border:`1.5px solid ${T.border}`, background:T.inputBg, fontSize:12,
     fontFamily:"'Plus Jakarta Sans',sans-serif", outline:"none", color:T.text };
   return (
@@ -2044,8 +2060,8 @@ function GenericPage({ title, icon, color="#5ab233", desc, fields }:
                     <td key={f} style={{ padding:"6px 8px" }}>
                       <input value={row[f]||""} onChange={e=>setRows(rs=>rs.map((r,i)=>i===ri?{...r,[f]:e.target.value}:r))}
                         placeholder={f} style={inp}
-                        onFocus={e=>(e.target as HTMLInputElement).style.borderColor=color}
-                        onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                        onFocus={e=>e.target.style.borderColor=color}
+                        onBlur={e=>e.target.style.borderColor=T.border}/>
                     </td>
                   ))}
                   <td style={{ padding:"6px 8px" }}>
@@ -2070,8 +2086,7 @@ function GenericPage({ title, icon, color="#5ab233", desc, fields }:
 }
 
 /* AI-Powered page wrapper */
-function AIPageWrapper({ title, icon, color="#6366f1", desc, prompt }:
-  { title:string; icon:string; color?:string; desc?:string; prompt:string }) {
+function AIPageWrapper({ title, icon, color="#6366f1", desc, prompt }) {
   const { T } = useTheme();
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
@@ -2092,7 +2107,7 @@ ${input}` }] })
     } catch { setResponse("⚠️ Connection error. Please try again."); }
     finally { setLoading(false); }
   };
-  const renderMd = (text:string) => text.split("\n").map((line,i)=>{
+  const renderMd = (text) => text.split("\n").map((line,i)=>{
     const parts = line.split(/\*\*(.*?)\*\*/g).map((p,j)=>j%2===1?<strong key={j}>{p}</strong>:p);
     if(line.startsWith("- ")||line.startsWith("• "))
       return <div key={i} style={{ display:"flex", gap:8, marginTop:4 }}><span style={{ color:color }}>•</span><span>{parts.slice(1)}</span></div>;
@@ -2111,8 +2126,8 @@ ${input}` }] })
               border:`1.5px solid ${T.border}`, background:T.inputBg, color:T.text,
               fontSize:13, fontFamily:"'Plus Jakarta Sans',sans-serif",
               outline:"none", resize:"vertical", lineHeight:1.6 }}
-            onFocus={e=>(e.target as HTMLTextAreaElement).style.borderColor=color}
-            onBlur={e=>(e.target as HTMLTextAreaElement).style.borderColor=T.border}/>
+            onFocus={e=>e.target.style.borderColor=color}
+            onBlur={e=>e.target.style.borderColor=T.border}/>
           <button onClick={analyze} disabled={loading||!input.trim()}
             style={{ marginTop:14, padding:"11px 28px", borderRadius:10, border:"none",
               background:loading||!input.trim()?T.bg3:color, color:loading||!input.trim()?T.muted:"#fff",
@@ -2160,7 +2175,7 @@ function TradingJournalPage() {
   ]);
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({symbol:"",side:"BUY",entry:"",exit:"",qty:"",emotion:"Neutral",notes:""});
-  const inp:React.CSSProperties = {width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp = {width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   const addEntry = () => {
     if(!form.symbol||!form.entry||!form.exit) return;
     const pnl=(parseFloat(form.exit)-parseFloat(form.entry))*parseInt(form.qty||"1")*(form.side==="SELL"?-1:1);
@@ -2178,7 +2193,7 @@ function TradingJournalPage() {
           {l:"Avg P&L",v:`$${entries.length?Math.round(totalPnl/entries.length):0}`}].map(s=>(
           <Card key={s.l} style={{padding:"16px"}}>
             <div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div>
-            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div>
           </Card>
         ))}
       </div>
@@ -2190,7 +2205,7 @@ function TradingJournalPage() {
             {[{key:"symbol",label:"Symbol",ph:"AAPL"},{key:"entry",label:"Entry",ph:"182.50",t:"number"},{key:"exit",label:"Exit",ph:"188.00",t:"number"},{key:"qty",label:"Qty",ph:"10",t:"number"}].map(f=>(
               <div key={f.key}>
                 <label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.label}</label>
-                <input value={(form as any)[f.key]} type={f.t||"text"} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#5ab233"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                <input value={(form)[f.key]} type={f.t||"text"} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#5ab233"} onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             ))}
             <div>
@@ -2299,7 +2314,7 @@ function RiskCalculatorPage() {
   const slPts=Math.abs(entry-sl);
   const posSize=slPts>0?Math.floor(riskAmount/slPts):0;
   const totalExposure=posSize*entry;
-  const inp:React.CSSProperties={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="Risk Calculator" icon="⚖️" color="#5ab233" desc="Calculate the right position size based on your risk tolerance and stop-loss.">
       <div className="ln-two-col">
@@ -2309,7 +2324,7 @@ function RiskCalculatorPage() {
             {[{k:"capital",l:"Total Capital (₹)",ph:"100000"},{k:"risk",l:"Risk Per Trade (%)",ph:"1"},{k:"entry",l:"Entry Price (₹)",ph:"100"},{k:"sl",l:"Stop Loss Price (₹)",ph:"95"}].map(f=>(
               <div key={f.k}>
                 <label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:5}}>{f.l}</label>
-                <input type="number" value={(vals as any)[f.k]} onChange={e=>setVals(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#5ab233"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                <input type="number" value={(vals)[f.k]} onChange={e=>setVals(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#5ab233"} onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             ))}
           </div>
@@ -2342,7 +2357,7 @@ function PositionSizePage() {
   const qty=slPts>0?Math.floor(riskAmt/slPts):0;
   const rr=slPts>0?(tgtPts/slPts).toFixed(2):0;
   const potProfit=qty*tgtPts, potLoss=qty*slPts;
-  const inp:React.CSSProperties={width:"100%",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="Position Size Calculator" icon="📐" color="#5ab233" desc="Calculate optimal position size for any trade based on risk/reward.">
       <div className="ln-two-col">
@@ -2352,7 +2367,7 @@ function PositionSizePage() {
             {[{k:"account",l:"Account Size (₹)",ph:"500000"},{k:"riskPct",l:"Risk Per Trade (%)",ph:"1"},{k:"entry",l:"Entry Price",ph:"250"},{k:"target",l:"Target Price",ph:"275"},{k:"sl",l:"Stop Loss",ph:"240"}].map(f=>(
               <div key={f.k}>
                 <label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label>
-                <input type="number" value={(v as any)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#5ab233"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+                <input type="number" value={(v)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#5ab233"} onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             ))}
           </div>
@@ -2422,13 +2437,13 @@ function ExpenseTrackerPage() {
   const total=expenses.reduce((s,e)=>s+e.amount,0);
   const cats=["Food","Housing","Transport","Entertainment","Shopping","Health","Education","Other"];
   const modes=["UPI","Credit Card","Debit Card","Cash","Bank Transfer","Net Banking"];
-  const inp:React.CSSProperties={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   const catTotals = cats.map(c=>({cat:c,total:expenses.filter(e=>e.cat===c).reduce((s,e)=>s+e.amount,0)})).filter(c=>c.total>0);
   return (
     <PageShell title="Expense Tracker" icon="💸" color="#f59e0b" desc="Track and categorize all your expenses to understand your spending habits.">
       <div className="ln-stats-grid" style={{marginBottom:20}}>
         {[{l:"Total Expenses",v:`₹${total.toLocaleString()}`,c:T.negative},{l:"This Month",v:`${expenses.length} entries`},{l:"Largest",v:`₹${Math.max(...expenses.map(e=>e.amount)).toLocaleString()}`},{l:"Categories",v:catTotals.length}].map(s=>(
-          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div></Card>
+          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div></Card>
         ))}
       </div>
       <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
@@ -2438,7 +2453,7 @@ function ExpenseTrackerPage() {
         <Card style={{marginBottom:16,padding:"22px"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
             {[{k:"name",l:"Expense Name",ph:"Rent"},{k:"amount",l:"Amount (₹)",ph:"5000",t:"number"},{k:"date",l:"Date",t:"date"}].map(f=>(
-              <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input value={(form as any)[f.k]} type={f.t||"text"} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#f59e0b"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/></div>
+              <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input value={(form)[f.k]} type={f.t||"text"} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#f59e0b"} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             ))}
             <div><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>Category</label><select value={form.cat} onChange={e=>setForm(p=>({...p,cat:e.target.value}))} style={inp}>{cats.map(c=><option key={c}>{c}</option>)}</select></div>
             <div><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>Payment Mode</label><select value={form.mode} onChange={e=>setForm(p=>({...p,mode:e.target.value}))} style={inp}>{modes.map(m=><option key={m}>{m}</option>)}</select></div>
@@ -2500,7 +2515,7 @@ function BudgetPlannerPage() {
     <PageShell title="Budget Planner" icon="📊" color="#f59e0b" desc="Plan and track your monthly budget across all expense categories.">
       <div className="ln-stats-grid" style={{marginBottom:24}}>
         {[{l:"Total Budget",v:`₹${totalBudget.toLocaleString()}`,c:"#f59e0b"},{l:"Total Spent",v:`₹${totalSpent.toLocaleString()}`,c:totalSpent>totalBudget?T.negative:T.positive},{l:"Remaining",v:`₹${(totalBudget-totalSpent).toLocaleString()}`,c:totalBudget>totalSpent?T.positive:T.negative},{l:"Utilisation",v:`${(totalSpent/totalBudget*100).toFixed(0)}%`}].map(s=>(
-          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div></Card>
+          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div></Card>
         ))}
       </div>
       <Card style={{padding:"24px"}}>
@@ -2621,7 +2636,7 @@ function EMICalculatorPage() {
   const P=parseFloat(v.principal||"0"),r=parseFloat(v.rate||"0")/12/100,n=parseInt(v.tenure||"0");
   const emi=r>0&&n>0?Math.round(P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1)):0;
   const totalPayment=emi*n, totalInterest=totalPayment-P;
-  const inp:React.CSSProperties={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="EMI Calculator" icon="🧮" color="#f59e0b" desc="Calculate your Equated Monthly Instalment for any loan.">
       <div className="ln-two-col">
@@ -2629,7 +2644,7 @@ function EMICalculatorPage() {
           <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:20}}>Loan Details</div>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             {[{k:"principal",l:"Loan Amount (₹)",ph:"500000"},{k:"rate",l:"Interest Rate (% per annum)",ph:"8.5"},{k:"tenure",l:"Tenure (months)",ph:"60"}].map(f=>(
-              <div key={f.k}><label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:5}}>{f.l}</label><input type="number" value={(v as any)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#f59e0b"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/></div>
+              <div key={f.k}><label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:5}}>{f.l}</label><input type="number" value={(v)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#f59e0b"} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             ))}
           </div>
         </Card>
@@ -2665,8 +2680,8 @@ function ProfitLossPage() {
             <div key={r.l} style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",
               background:i%2===0?T.bg2:"transparent",borderRadius:8,
               borderBottom:`1px solid ${T.border}`}}>
-              <span style={{fontSize:14,fontWeight:(r as any).bold?700:400,color:T.text}}>{r.l}</span>
-              <span style={{fontSize:14,fontWeight:(r as any).bold?700:400,color:(r as any).color||(r.v<0?T.negative:T.text)}}>
+              <span style={{fontSize:14,fontWeight:(r).bold?700:400,color:T.text}}>{r.l}</span>
+              <span style={{fontSize:14,fontWeight:(r).bold?700:400,color:(r).color||(r.v<0?T.negative:T.text)}}>
                 {r.v<0?"-":"+"}₹{Math.abs(r.v).toLocaleString()}
               </span>
             </div>
@@ -2755,7 +2770,7 @@ function CashFlowPage() {
 }
 
 /* ── Invoices Page (renamed from InvoicesPage) ── */
-function InvoicesPage({ toast }:{ toast:(m:string,t?:string)=>void }) {
+function InvoicesPage({ toast }) {
   const { T } = useTheme();
   const [invoices,setInvoices] = useState([
     {id:"INV-001",client:"Acme Corp",date:"2024-01-15",due:"2024-02-15",amount:4500,status:"Paid"},
@@ -2764,10 +2779,10 @@ function InvoicesPage({ toast }:{ toast:(m:string,t?:string)=>void }) {
     {id:"INV-004",client:"Delta Investments",date:"2024-01-20",due:"2024-02-20",amount:3200,status:"Draft"},
   ]);
   const [showNew,setShowNew] = useState(false);
-  const [form,setForm] = useState({client:"",email:"",items:[{desc:"",qty:1,rate:""}] as {desc:string;qty:number;rate:string;}[]});
+  const [form,setForm] = useState({client:"",email:"",items:[{desc:"",qty:1,rate:""}] as {desc;qty;rate;}[]});
   const total=form.items.reduce((s,it)=>s+(parseFloat(it.rate)||0)*it.qty,0);
-  const sc:{[k:string]:{bg:string;color:string}}={Paid:{bg:T.positiveBg,color:T.positive},Pending:{bg:T.warnBg,color:T.warn},Overdue:{bg:T.negativeBg,color:T.negative},Draft:{bg:T.bg3,color:T.muted}};
-  const inp:React.CSSProperties={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const sc:{[k]:{bg;color}}={Paid:{bg:T.positiveBg,color:T.positive},Pending:{bg:T.warnBg,color:T.warn},Overdue:{bg:T.negativeBg,color:T.negative},Draft:{bg:T.bg3,color:T.muted}};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   const save=()=>{if(!form.client)return;setInvoices(iv=>[{id:`INV-00${invoices.length+1}`,client:form.client,date:new Date().toISOString().slice(0,10),due:"",amount:total,status:"Draft"},...iv]);setShowNew(false);setForm({client:"",email:"",items:[{desc:"",qty:1,rate:""}]});toast("Invoice saved!");};
   return (
     <PageShell title="Invoices & Billing" icon="✏️" color="#5ab233" desc="Create, send and track professional invoices for your clients.">
@@ -2782,7 +2797,7 @@ function InvoicesPage({ toast }:{ toast:(m:string,t?:string)=>void }) {
           <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:16}}>New Invoice</div>
           <div className="ln-invoice-meta">
             {[{k:"client",l:"Client",ph:"Acme Corp"},{k:"email",l:"Email",ph:"billing@client.com"}].map(f=>(
-              <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input value={(form as any)[f.k]} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#5ab233"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/></div>
+              <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input value={(form)[f.k]} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#5ab233"} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             ))}
           </div>
           <div className="ln-table-wrap">
@@ -2838,7 +2853,7 @@ function InterestCalculatorPage() {
   const ci=P*(Math.pow(1+r,t)-1);
   const result=v.type==="simple"?si:ci;
   const total=P+result;
-  const inp:React.CSSProperties={width:"100%",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="Interest Calculator" icon="🧮" color="#ef4444" desc="Calculate simple and compound interest for any loan or investment.">
       <div className="ln-two-col">
@@ -2846,7 +2861,7 @@ function InterestCalculatorPage() {
           <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:18}}>Parameters</div>
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             {[{k:"principal",l:"Principal Amount (₹)",ph:"100000"},{k:"rate",l:"Rate of Interest (% p.a.)",ph:"12"},{k:"time",l:"Time Period (years)",ph:"2"}].map(f=>(
-              <div key={f.k}><label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input type="number" value={(v as any)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#ef4444"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/></div>
+              <div key={f.k}><label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input type="number" value={(v)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#ef4444"} onBlur={e=>e.target.style.borderColor=T.border}/></div>
             ))}
             <div>
               <label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:4}}>Interest Type</label>
@@ -2883,13 +2898,13 @@ function EMISchedulePage() {
     const principal=emi-interest;
     return {month:i+1,emi,principal,interest,balance:Math.max(0,P-(i+1)*principal)};
   });
-  const inp:React.CSSProperties={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="EMI Schedule" icon="📅" color="#ef4444" desc="Full amortisation schedule showing principal and interest breakup for each EMI.">
       <Card style={{padding:"20px",marginBottom:20}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
           {[{k:"principal",l:"Loan Amount (₹)",ph:"500000"},{k:"rate",l:"Interest Rate (% p.a.)",ph:"8.5"},{k:"tenure",l:"Tenure (months)",ph:"12"}].map(f=>(
-            <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input type="number" value={(v as any)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#ef4444"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/></div>
+            <div key={f.k}><label style={{fontSize:11,color:T.muted2,display:"block",marginBottom:4}}>{f.l}</label><input type="number" value={(v)[f.k]} onChange={e=>setV(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={inp} onFocus={e=>e.target.style.borderColor="#ef4444"} onBlur={e=>e.target.style.borderColor=T.border}/></div>
           ))}
         </div>
         <div style={{marginTop:14,padding:"14px",borderRadius:10,background:"#ef444412",border:"1px solid #ef444430"}}>
@@ -2934,7 +2949,7 @@ function StocksPortfolioPage() {
     <PageShell title="Stocks Portfolio" icon="📈" color="#a855f7" desc="Track your equity portfolio with real-time P&L and allocation insights.">
       <div className="ln-stats-grid" style={{marginBottom:20}}>
         {[{l:"Invested",v:`₹${(totalInvested/1000).toFixed(0)}K`},{l:"Current Value",v:`₹${(currentVal/1000).toFixed(0)}K`},{l:"Total P&L",v:`${totalPnl>=0?"+":""}₹${(totalPnl/1000).toFixed(1)}K`,c:totalPnl>=0?T.positive:T.negative},{l:"Returns",v:`${(totalPnl/totalInvested*100).toFixed(1)}%`,c:totalPnl>=0?T.positive:T.negative}].map(s=>(
-          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div></Card>
+          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div></Card>
         ))}
       </div>
       <Card style={{padding:"18px"}}>
@@ -2951,7 +2966,7 @@ function StocksPortfolioPage() {
                 <td style={{padding:"12px",fontWeight:600,color:pnl>=0?T.positive:T.negative}}>{pnl>=0?"+":""}₹{Math.abs(pnl).toLocaleString()}</td>
                 <td style={{padding:"12px"}}><span style={{padding:"3px 9px",borderRadius:20,fontSize:11,fontWeight:600,background:parseFloat(ret)>=0?T.positiveBg:T.negativeBg,color:parseFloat(ret)>=0?T.positive:T.negative}}>{parseFloat(ret)>=0?"+":""}{ret}%</span></td>
               </tr>
-            );})}</tbody>
+            );}}</tbody>
           </table>
         </div>
       </Card>
@@ -2975,7 +2990,7 @@ function CryptoPortfolioPage() {
     <PageShell title="Crypto Portfolio" icon="₿" color="#a855f7" desc="Track all your cryptocurrency investments in one place.">
       <div className="ln-stats-grid" style={{marginBottom:20}}>
         {[{l:"Invested",v:`$${totalInv.toLocaleString()}`},{l:"Current",v:`$${currVal.toLocaleString()}`},{l:"P&L",v:`${pnl>=0?"+":""}$${pnl.toLocaleString()}`,c:pnl>=0?T.positive:T.negative},{l:"Return",v:`${(pnl/totalInv*100).toFixed(1)}%`,c:pnl>=0?T.positive:T.negative}].map(s=>(
-          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div></Card>
+          <Card key={s.l} style={{padding:"16px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(14px,3vw,20px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div></Card>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
@@ -3007,12 +3022,12 @@ function TaxCalculatorPage() {
   const oldSlabs=[{from:0,to:250000,rate:0},{from:250000,to:500000,rate:5},{from:500000,to:1000000,rate:20},{from:1000000,to:Infinity,rate:30}];
   const newSlabs=[{from:0,to:300000,rate:0},{from:300000,to:700000,rate:5},{from:700000,to:1000000,rate:10},{from:1000000,to:1200000,rate:15},{from:1200000,to:1500000,rate:20},{from:1500000,to:Infinity,rate:30}];
   const slabs=v.regime==="old"?oldSlabs:newSlabs;
-  const calcTax=(inc:number)=>slabs.reduce((t,s)=>{const taxable=Math.max(0,Math.min(inc,s.to===Infinity?inc:s.to)-s.from);return t+taxable*s.rate/100;},0);
+  const calcTax=(inc)=>slabs.reduce((t,s)=>{const taxable=Math.max(0,Math.min(inc,s.to===Infinity?inc:s.to)-s.from);return t+taxable*s.rate/100;},0);
   const tax=calcTax(income);
   const cess=tax*0.04;
   const total=tax+cess;
   const effectiveRate=income>0?(total/income*100).toFixed(1):0;
-  const inp:React.CSSProperties={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"11px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="Tax Calculator" icon="🧮" color="#f97316" desc="Calculate your income tax liability under old and new tax regimes.">
       <div className="ln-two-col">
@@ -3020,7 +3035,7 @@ function TaxCalculatorPage() {
           <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:18}}>Income Details</div>
           <div style={{marginBottom:16}}>
             <label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:5}}>Annual Income (₹)</label>
-            <input type="number" value={v.income} onChange={e=>setV(p=>({...p,income:e.target.value}))} placeholder="1200000" style={inp} onFocus={e=>(e.target as HTMLInputElement).style.borderColor="#f97316"} onBlur={e=>(e.target as HTMLInputElement).style.borderColor=T.border}/>
+            <input type="number" value={v.income} onChange={e=>setV(p=>({...p,income:e.target.value}))} placeholder="1200000" style={inp} onFocus={e=>e.target.style.borderColor="#f97316"} onBlur={e=>e.target.style.borderColor=T.border}/>
           </div>
           <div>
             <label style={{fontSize:12,color:T.muted2,display:"block",marginBottom:8}}>Tax Regime</label>
@@ -3055,9 +3070,9 @@ function TaxCalculatorPage() {
 }
 
 /* ── Document Vault ── */
-function VaultPage({ title, icon, color="#64748b", docType }:{ title:string; icon:string; color?:string; docType:string }) {
+function VaultPage({ title, icon, color="#64748b", docType }) {
   const { T } = useTheme();
-  const [docs,setDocs] = useState<{name:string;date:string;size:string;status:string}[]>([]);
+  const [docs,setDocs] = useState([]);
   const [dragging,setDragging] = useState(false);
   const addDoc=()=>setDocs(d=>[...d,{name:`${docType}_${Date.now()}.pdf`,date:new Date().toLocaleDateString(),size:"2.4 MB",status:"Verified"}]);
   return (
@@ -3108,7 +3123,7 @@ function NotesPage() {
   const [adding,setAdding] = useState(false);
   const [form,setForm] = useState({title:"",content:"",color:"#5ab233"});
   const colors=["#5ab233","#6366f1","#f59e0b","#0ea5e9","#ef4444","#14b8a6"];
-  const inp:React.CSSProperties={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
   return (
     <PageShell title="Notes" icon="📝" color="#14b8a6" desc="Capture trading ideas, market analysis and financial notes.">
       <div style={{marginBottom:16}}><button onClick={()=>setAdding(s=>!s)} style={{padding:"9px 22px",borderRadius:9,border:"none",background:"#14b8a6",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>+ New Note</button></div>
@@ -3151,7 +3166,7 @@ function GoalsPage() {
     {id:3,title:"Learn options trading",category:"Education",deadline:"2024-06-30",progress:80,priority:"Medium",status:"In Progress"},
     {id:4,title:"Get chartered accountant cert",category:"Education",deadline:"2025-06-30",progress:20,priority:"Low",status:"Planning"},
   ]);
-  const priorityColor:Record<string,string>={High:"#ef4444",Medium:"#f59e0b",Low:"#5ab233"};
+  const priorityColor={High:"#ef4444",Medium:"#f59e0b",Low:"#5ab233"};
   return (
     <PageShell title="Goals" icon="🎯" color="#14b8a6" desc="Set and track your financial and personal goals with milestones.">
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -3204,14 +3219,14 @@ function TasksPage() {
   ]);
   const [adding,setAdding] = useState(false);
   const [form,setForm] = useState({title:"",cat:"Finance",due:"",priority:"Medium"});
-  const inp:React.CSSProperties={width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
-  const pColor:Record<string,string>={High:"#ef4444",Medium:"#f59e0b",Low:"#5ab233"};
+  const inp={width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,background:T.inputBg,fontSize:13,fontFamily:"'Plus Jakarta Sans',sans-serif",outline:"none",color:T.text};
+  const pColor={High:"#ef4444",Medium:"#f59e0b",Low:"#5ab233"};
   const pending=tasks.filter(t=>!t.done).length;
   return (
     <PageShell title="Tasks" icon="✅" color="#14b8a6" desc="Manage your financial to-do list and never miss an important task.">
       <div className="ln-stats-grid" style={{marginBottom:20}}>
         {[{l:"Total Tasks",v:tasks.length},{l:"Pending",v:pending,c:T.negative},{l:"Completed",v:tasks.length-pending,c:T.positive},{l:"Completion",v:`${tasks.length?Math.round((tasks.length-pending)/tasks.length*100):0}%`,c:"#14b8a6"}].map(s=>(
-          <Card key={s.l} style={{padding:"14px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s as any).c||T.text}}>{s.v}</div></Card>
+          <Card key={s.l} style={{padding:"14px"}}><div style={{fontSize:11,color:T.muted,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:"clamp(16px,3vw,22px)",fontWeight:800,color:(s).c||T.text}}>{s.v}</div></Card>
         ))}
       </div>
       <div style={{marginBottom:14}}><button onClick={()=>setAdding(s=>!s)} style={{padding:"9px 22px",borderRadius:9,border:"none",background:"#14b8a6",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>+ New Task</button></div>
@@ -3297,7 +3312,7 @@ function FinancialCalendarPage() {
   );
 }
 
-function LandingPage({ onAuth, setPage }:{ onAuth:(t:string)=>void; setPage:(p:string)=>void }) {
+function LandingPage({ onAuth, setPage }) {
   return (
     <>
       <Hero setPage={setPage}/>
@@ -3312,12 +3327,12 @@ function LandingPage({ onAuth, setPage }:{ onAuth:(t:string)=>void; setPage:(p:s
 /* ══════════════════════════════════════
    ROOT — default export for Next.js 15
 ══════════════════════════════════════ */
-export default function Page() {
+export default function App() {
   const [page, setPage] = useState("home");
   const [dark, setDark] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState("login");
-  const [user, setUser] = useState<AuthUser|null>(null);
+  const [user, setUser] = useState(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [sideOpen, setSideOpen] = useState(false);
   const { toasts, add:addToast, remove:removeToast } = useToast();
@@ -3343,8 +3358,9 @@ export default function Page() {
         if(alive) setSessionChecked(true);
         return;
       }
+
       try {
-        const result = await api<{ user:AuthUser }>("/api/auth/me");
+        const result = await api("/api/auth/me");
         if(alive) setUser(result.user);
       } catch {
         clearToken();
@@ -3352,6 +3368,7 @@ export default function Page() {
         if(alive) setSessionChecked(true);
       }
     }
+
     verifySession();
     return ()=>{ alive = false; };
   },[]);
@@ -3370,8 +3387,8 @@ export default function Page() {
     return ()=>{ document.head.removeChild(el); };
   },[]);
 
-  const openAuth = (tab:string) => { setAuthTab(tab); setAuthOpen(true); };
-  const onAuthenticated = (nextUser:AuthUser) => {
+  const openAuth = (tab) => { setAuthTab(tab); setAuthOpen(true); };
+  const onAuthenticated = (nextUser) => {
     setUser(nextUser);
     setPage("dashboard");
     addToast("Signed in successfully", "success");
@@ -3382,10 +3399,10 @@ export default function Page() {
     setPage("home");
     addToast("Signed out", "success");
   };
-  const goToPage = (nextPage:string) => {
+  const goToPage = (nextPage) => {
     if(nextPage !== "home" && !user) {
       openAuth("login");
-      addToast("Please sign in to continue", "warn");
+      addToast("Please sign in to continue", "info");
       return;
     }
     setPage(nextPage);

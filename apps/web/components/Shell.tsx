@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, Bot, CreditCard, LayoutDashboard, LogOut, ReceiptText, ShieldCheck } from "lucide-react";
 import { clearToken } from "@/lib/api";
+import { AuthGuard } from "./AuthGuard";
 import { ThemeToggle } from "./ThemeToggle";
 
 const nav = [
@@ -19,6 +20,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   return (
+    <AuthGuard>
     <main className="min-h-screen bg-slate-50 text-ink dark:bg-ink dark:text-white">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 lg:block">
         <Link href="/" className="text-xl font-black tracking-tight">LedgrNow</Link>
@@ -50,5 +52,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="p-4 lg:p-8">{children}</div>
       </section>
     </main>
+    </AuthGuard>
   );
 }
