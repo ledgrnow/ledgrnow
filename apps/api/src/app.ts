@@ -17,7 +17,16 @@ import transactionRoutes from "./routes/transaction.routes.js";
 export const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(
+  cors({
+    origin: [
+      "https://ledgrnow.vercel.app",
+      "https://ledgrnow-saas.vercel.app",
+      "http://localhost:3000"
+    ],
+    credentials: true
+  })
+);
 app.use(morgan("dev"));
 app.use(
   rateLimit({
